@@ -12,7 +12,7 @@ fn main() {
         ))),
     ).add_plugins(HttpClientPlugin).insert_resource(WeatherApiTimer(Timer::from_seconds(
         1.0,
-        TimerMode::Repeating,
+        TimerMode::Once,
     )))
         .add_systems(Update, spawn_reqwest)
         .run()
@@ -25,8 +25,7 @@ fn spawn_reqwest(mut commands: Commands, time: Res<Time>, mut timer: ResMut<Weat
     timer.tick(time.delta());
 
     if timer.just_finished() {
-        let req = ehttp::Request::get("https://www.bing.com");
-        println!("send request");
+        let req = ehttp::Request::get("https://api.ipify.org?format=json");
         commands.spawn(HttpRequest(req));
     }
 }

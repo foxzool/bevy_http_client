@@ -79,9 +79,9 @@ fn handle_response(
 ) {
     for (entity, mut task) in request_tasks.iter_mut() {
 
-        println!("{:?}", task.0);
+
         if let Some(result) = future::block_on(future::poll_once(&mut task.0)) {
-            println!("{:?}", result);
+            println!("{:?}", result.unwrap().text());
             commands.entity(entity).remove::<RequestTask>();
             req_res.current_clients -= 1;
         }
