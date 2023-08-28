@@ -12,7 +12,7 @@ fn main() {
         )
         .add_plugins(HttpClientPlugin)
         .init_resource::<ApiTimer>()
-        .add_systems(Update, (send_reqwest, handle_response))
+        .add_systems(Update, (send_request, handle_response))
         .run()
 }
 
@@ -25,7 +25,7 @@ impl Default for ApiTimer {
     }
 }
 
-fn send_reqwest(mut commands: Commands, time: Res<Time>, mut timer: ResMut<ApiTimer>) {
+fn send_request(mut commands: Commands, time: Res<Time>, mut timer: ResMut<ApiTimer>) {
     timer.tick(time.delta());
 
     if timer.just_finished() {
@@ -34,7 +34,7 @@ fn send_reqwest(mut commands: Commands, time: Res<Time>, mut timer: ResMut<ApiTi
     }
 }
 
-fn handle_response(mut commands: Commands, mut responses: Query<(Entity, &HttpResponse)>) {
+fn handle_response(mut commands: Commands, responses: Query<(Entity, &HttpResponse)>) {
     for (entity, response) in responses.iter() {
         println!("response: {:?}", response.text());
         commands.entity(entity).despawn_recursive();

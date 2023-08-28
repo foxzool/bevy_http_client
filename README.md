@@ -5,7 +5,7 @@
 [![Documentation](https://docs.rs/bevy_http_client/badge.svg)](https://docs.rs/bevy_http_client)
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Seldom-SE/seldom_pixel#license)
 
-A simple HTTP client for Bevy. It works on WASM and native platforms.
+A simple HTTP client Bevy Plugin for both native and WASM. 
 
 ## Example
 
@@ -24,7 +24,7 @@ fn main() {
         )
         .add_plugins(HttpClientPlugin)
         .init_resource::<ApiTimer>()
-        .add_systems(Update, (send_reqwest, handle_response))
+        .add_systems(Update, (send_request, handle_response))
         .run()
 }
 
@@ -37,11 +37,11 @@ impl Default for ApiTimer {
     }
 }
 
-fn send_reqwest(mut commands: Commands, time: Res<Time>, mut timer: ResMut<ApiTimer>) {
+fn send_request(mut commands: Commands, time: Res<Time>, mut timer: ResMut<ApiTimer>) {
     timer.tick(time.delta());
 
     if timer.just_finished() {
-        let req = ehttp::Request::get("https://api.ipify.org?format=json");
+        let req = ehttp::Request::get("https://api.ipify.org");
         commands.spawn(HttpRequest(req));
     }
 }
