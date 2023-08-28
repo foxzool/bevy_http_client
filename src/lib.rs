@@ -1,9 +1,23 @@
+#![warn(missing_docs)]
+#![doc = include_str!("../README.md")]
+
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
 pub use ehttp;
 use ehttp::{Request, Response};
 use futures_lite::future;
 
+/// Add the plugin to bevy to support send http request and handle response.
+///
+/// # Example
+/// ```no_run
+/// # use bevy::prelude::*;
+/// # use bevy_http_client::HttpClientPlugin;
+///
+/// App::new()
+/// .add_plugins(DefaultPlugins)
+/// .add_plugins(HttpClientPlugin).run();
+/// ```
 #[derive(Default)]
 pub struct HttpClientPlugin;
 
@@ -18,6 +32,7 @@ impl Plugin for HttpClientPlugin {
 
 #[derive(Resource)]
 pub struct HttpClientSetting {
+    /// max concurrent request
     pub max_concurrent: usize,
     current_clients: usize,
 }
