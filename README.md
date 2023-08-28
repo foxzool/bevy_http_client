@@ -1,8 +1,9 @@
 # bevy_http_client
 
 [![Crates.io](https://img.shields.io/crates/v/bevy_http_client)](https://crates.io/crates/bevy_http_client)
+[![crates.io](https://img.shields.io/crates/d/bevy_http_client)](https://crates.io/crates/bevy_cronjob)
 [![Documentation](https://docs.rs/bevy_http_client/badge.svg)](https://docs.rs/bevy_http_client)
-[![License](https://img.shields.io/crates/l/bevy_http_client)](
+[![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Seldom-SE/seldom_pixel#license)
 
 A simple HTTP client for Bevy. It works on WASM and native platforms.
 
