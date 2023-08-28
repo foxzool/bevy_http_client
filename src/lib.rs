@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
+pub use ehttp;
 use ehttp::{Request, Response};
 use futures_lite::future;
-
-pub use ehttp;
 
 #[derive(Default)]
 pub struct HttpClientPlugin;
@@ -40,14 +39,20 @@ impl HttpClientSetting {
         }
     }
 
+    #[inline]
     pub fn is_available(&self) -> bool {
         self.current_clients < self.max_concurrent
     }
 }
 
-
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
 pub struct HttpRequest(pub Request);
+
+#[derive(Component, Debug, Clone, Deref, DerefMut)]
+pub struct HttpResponse(pub Response);
+
+#[derive(Component, Debug, Clone, Deref, DerefMut)]
+pub struct HttpResponseError(pub String);
 
 #[derive(Component)]
 pub struct RequestTask(pub Task<Result<Response, ehttp::Error>>);
@@ -61,12 +66,13 @@ fn handle_request(
     for (entity, request) in requests.iter() {
         if req_res.is_available() {
             let req = request.clone();
-            println!("{:?}", req);
-            let s = thread_pool.spawn( async {
-                ehttp::fetch_async(req.0).await
-            });
 
-            commands.entity(entity).insert(RequestTask(s));
+            let s = thread_pool.spawn(async { ehttp::fetch_async(req.0).await });
+
+            commands
+                .entity(entity)
+                .remove::<HttpRequest>()
+                .insert(RequestTask(s));
             req_res.current_clients += 1;
         }
     }
@@ -78,11 +84,22 @@ fn handle_response(
     mut request_tasks: Query<(Entity, &mut RequestTask)>,
 ) {
     for (entity, mut task) in request_tasks.iter_mut() {
-
-
         if let Some(result) = future::block_on(future::poll_once(&mut task.0)) {
-            println!("{:?}", result.unwrap().text());
-            commands.entity(entity).remove::<RequestTask>();
+            match result {
+                Ok(res) => {
+                    commands
+                        .entity(entity)
+                        .insert(HttpResponse(res))
+                        .remove::<RequestTask>();
+                }
+                Err(e) => {
+                    commands
+                        .entity(entity)
+                        .insert(HttpResponseError(e))
+                        .remove::<RequestTask>();
+                }
+            }
+
             req_res.current_clients -= 1;
         }
     }
