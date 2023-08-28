@@ -30,6 +30,8 @@ impl Plugin for HttpClientPlugin {
     }
 }
 
+/// The setting of http client.
+/// can set the max concurrent request.
 #[derive(Resource)]
 pub struct HttpClientSetting {
     /// max concurrent request
@@ -47,6 +49,7 @@ impl Default for HttpClientSetting {
 }
 
 impl HttpClientSetting {
+    /// create a new http client setting
     pub fn new(max_concurrent: usize) -> Self {
         Self {
             max_concurrent,
@@ -54,21 +57,26 @@ impl HttpClientSetting {
         }
     }
 
+    /// check if the client is available
     #[inline]
     pub fn is_available(&self) -> bool {
         self.current_clients < self.max_concurrent
     }
 }
 
+/// wrap for ehttp request
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
 pub struct HttpRequest(pub Request);
 
+/// wrap for ehttp response
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
 pub struct HttpResponse(pub Response);
 
+/// wrap for ehttp error
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
 pub struct HttpResponseError(pub String);
 
+/// task for ehttp response result
 #[derive(Component)]
 pub struct RequestTask(pub Task<Result<Response, ehttp::Error>>);
 
