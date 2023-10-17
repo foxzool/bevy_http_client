@@ -68,6 +68,23 @@ impl HttpClientSetting {
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
 pub struct HttpRequest(pub Request);
 
+impl HttpRequest {
+    /// create a new http request
+    pub fn new(request: Request) -> Self {
+        Self(request)
+    }
+
+    /// create a new http get request
+    pub fn get(url: &str) -> Self {
+        Self(Request::get(url))
+    }
+
+    /// create a new http post request
+    pub fn post(url: &str, body: Vec<u8>) -> Self {
+        Self(Request::post(url, body))
+    }
+}
+
 /// wrap for ehttp response
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
 pub struct HttpResponse(pub Response);
