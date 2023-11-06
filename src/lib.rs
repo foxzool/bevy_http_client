@@ -75,7 +75,7 @@ impl HttpRequest {
     }
 
     /// create a new http get request
-    pub fn get(url: &str) -> Self {
+    pub fn get(url: impl ToString) -> Self {
         Self(Request::get(url))
     }
 
