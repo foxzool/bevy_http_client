@@ -1,11 +1,11 @@
-#![warn(missing_docs)]
-#![doc = include_str!("../README.md")]
+pub mod typed;
 
 use bevy::prelude::*;
 use bevy::tasks::{AsyncComputeTaskPool, Task};
 pub use ehttp;
 use ehttp::{Request, Response};
 use futures_lite::future;
+pub use typed::register_request_type;
 
 /// Add the plugin to bevy to support send http request and handle response.
 ///
