@@ -1,4 +1,4 @@
-use crate::{HttpClientSetting, HttpResponseError};
+use crate::HttpClientSetting;
 use bevy::ecs::query::WorldQuery;
 use bevy::prelude::{App, Update};
 use bevy::prelude::{Commands, Component, Entity, Query, ResMut, Without};
@@ -51,7 +51,7 @@ pub struct TypedResponse<T>
 where
     T: Send + Sync,
 {
-    pub response: Response,
+    pub result: Result<Response, String>,
     res: PhantomData<T>,
 }
 
@@ -60,12 +60,16 @@ where
     T: for<'a> Deserialize<'a> + Send + Sync,
 {
     pub fn parse(&self) -> Option<T> {
-        match &self.response.text() {
-            Some(s) => match serde_json::from_str::<T>(s) {
-                Ok(val) => Some(val),
-                _ => None,
-            },
-            None => None,
+        if let Ok(response) = &self.result {
+            match response.text() {
+                Some(s) => match serde_json::from_str::<T>(s) {
+                    Ok(val) => Some(val),
+                    _ => None,
+                },
+                None => None,
+            }
+        } else {
+            None
         }
     }
 }
@@ -114,23 +118,13 @@ pub fn handle_typed_response<T: Send + Sync + 'static>(
 ) {
     for mut entry in request_tasks.iter_mut() {
         if let Some(result) = future::block_on(future::poll_once(&mut entry.task.task)) {
-            match result {
-                Ok(response) => {
-                    commands
-                        .entity(entry.entity)
-                        .insert(TypedResponse::<T> {
-                            response,
-                            res: PhantomData,
-                        })
-                        .remove::<TypedRequestTask<T>>();
-                }
-                Err(e) => {
-                    commands
-                        .entity(entry.entity)
-                        .insert(HttpResponseError(e))
-                        .remove::<TypedRequestTask<T>>();
-                }
-            }
+            commands
+                .entity(entry.entity)
+                .insert(TypedResponse::<T> {
+                    result,
+                    res: PhantomData,
+                })
+                .remove::<TypedRequestTask<T>>();
 
             req_res.current_clients -= 1;
         }

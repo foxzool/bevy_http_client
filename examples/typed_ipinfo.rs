@@ -49,7 +49,7 @@ fn handle_response(mut commands: Commands, responses: Query<(Entity, &TypedRespo
                 println!("response: {:?}", v);
             }
             None => {
-                println!("Failed to parse: {:?}", response.response.text());
+                println!("Failed to parse: {:?}", response.result);
             }
         }
         commands.entity(entity).despawn_recursive();
