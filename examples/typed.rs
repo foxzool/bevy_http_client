@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*};
-use bevy_http_client::typed::{TypedRequest, TypedResponse};
+use bevy_http_client::typed::*;
 use bevy_http_client::*;
 use serde::Deserialize;
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
 pub struct IpInfo {
     pub ip: String,
 }
@@ -38,7 +38,7 @@ fn send_request(mut commands: Commands, time: Res<Time>, mut timer: ResMut<ApiTi
 
     if timer.just_finished() {
         let req = ehttp::Request::get("https://api.ipify.org?format=json");
-        commands.spawn(TypedRequest::<IpInfo>::new(req));
+        commands.spawn((HttpRequest(req), RequestType::<IpInfo>::default()));
     }
 }
 
