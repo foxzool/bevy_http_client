@@ -14,7 +14,7 @@ pub fn register_request_type<T: Send + Sync + 'static>(app: &mut App) -> &mut Ap
 #[derive(Bundle, Debug, Clone)]
 pub struct RequestBundle<T>
 where
-    T: Send + Sync + Default + 'static,
+    T: Send + Sync + 'static,
 {
     pub request: HttpRequest,
     pub request_type: RequestType<T>,
@@ -22,17 +22,17 @@ where
 
 impl<T> RequestBundle<T>
 where
-    T: Send + Sync + Default + 'static,
+    T: Send + Sync + 'static,
 {
     pub fn new(request: Request) -> Self {
         Self {
             request: HttpRequest(request),
-            request_type: RequestType::<T>::default(),
+            request_type: RequestType::<T>(PhantomData),
         }
     }
 }
 
-#[derive(Component, Debug, Clone, Default)]
+#[derive(Component, Debug, Clone)]
 pub struct RequestType<T>(pub PhantomData<T>);
 
 /// wrap for ehttp response
