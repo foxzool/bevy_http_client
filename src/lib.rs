@@ -1,11 +1,18 @@
-pub mod typed;
+mod typed;
 
 use bevy::prelude::*;
 use bevy::tasks::{block_on, AsyncComputeTaskPool, Task};
 pub use ehttp;
 use ehttp::{Request, Response};
 use futures_lite::future;
-pub use typed::register_request_type;
+
+pub mod prelude {
+    pub use super::typed::{register_request_type, RequestBundle, TypedResponse};
+    pub use super::{
+        HttpClientPlugin, HttpClientSetting, HttpRequest, HttpResponse, HttpResponseError,
+        RequestTask,
+    };
+}
 
 /// Add the plugin to bevy to support send http request and handle response.
 ///

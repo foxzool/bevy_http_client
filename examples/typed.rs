@@ -1,8 +1,7 @@
 use std::time::Duration;
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*};
-use bevy_http_client::typed::*;
-use bevy_http_client::*;
+use bevy_http_client::prelude::*;
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Deserialize, Default)]
@@ -20,7 +19,7 @@ fn main() {
             .add_plugins(HttpClientPlugin)
             .init_resource::<ApiTimer>()
             .add_systems(Update, (send_request, handle_response));
-    let app = bevy_http_client::register_request_type::<IpInfo>(app);
+    let app = register_request_type::<IpInfo>(app);
     app.run();
 }
 
