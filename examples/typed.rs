@@ -38,7 +38,7 @@ fn send_request(mut commands: Commands, time: Res<Time>, mut timer: ResMut<ApiTi
 
     if timer.just_finished() {
         let req = ehttp::Request::get("https://api.ipify.org?format=json");
-        commands.spawn((HttpRequest(req), RequestType::<IpInfo>::default()));
+        commands.spawn(RequestBundle::<IpInfo>::new(req));
     }
 }
 

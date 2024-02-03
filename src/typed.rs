@@ -1,13 +1,35 @@
-use crate::{HttpResponse, HttpResponseError};
+use crate::{HttpRequest, HttpResponse, HttpResponseError};
+use bevy::ecs::bundle::Bundle;
 use bevy::ecs::query::{Added, WorldQuery};
 use bevy::prelude::{App, Update};
 use bevy::prelude::{Commands, Component, Entity, Query};
-use ehttp::Response;
+use ehttp::{Request, Response};
 use serde::Deserialize;
 use std::marker::PhantomData;
 
 pub fn register_request_type<T: Send + Sync + 'static>(app: &mut App) -> &mut App {
     app.add_systems(Update, handle_typed_response::<T>)
+}
+
+#[derive(Bundle, Debug, Clone)]
+pub struct RequestBundle<T>
+where
+    T: Send + Sync + Default + 'static,
+{
+    pub request: HttpRequest,
+    pub request_type: RequestType<T>,
+}
+
+impl<T> RequestBundle<T>
+where
+    T: Send + Sync + Default + 'static,
+{
+    pub fn new(request: Request) -> Self {
+        Self {
+            request: HttpRequest(request),
+            request_type: RequestType::<T>::default(),
+        }
+    }
 }
 
 #[derive(Component, Debug, Clone, Default)]
@@ -64,15 +86,21 @@ pub fn handle_typed_response<T: Send + Sync + 'static>(
     failed_tasks: Query<TypedFailedRequestQuery<T>, Added<HttpResponseError>>,
 ) {
     for entry in request_tasks.iter() {
-        commands.entity(entry.entity).insert(TypedResponse::<T> {
-            result: Ok(entry.response.0.clone()),
-            res: PhantomData,
-        }).remove::<RequestType<T>>();
+        commands
+            .entity(entry.entity)
+            .insert(TypedResponse::<T> {
+                result: Ok(entry.response.0.clone()),
+                res: PhantomData,
+            })
+            .remove::<RequestType<T>>();
     }
     for entry in failed_tasks.iter() {
-        commands.entity(entry.entity).insert(TypedResponse::<T> {
-            result: Err(entry.response.0.clone()),
-            res: PhantomData,
-        }).remove::<RequestType<T>>();
+        commands
+            .entity(entry.entity)
+            .insert(TypedResponse::<T> {
+                result: Err(entry.response.0.clone()),
+                res: PhantomData,
+            })
+            .remove::<RequestType<T>>();
     }
 }
