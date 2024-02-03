@@ -12,7 +12,7 @@ keywords = ["bevy", "http", "plugin"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = { version = "0.12", default-features = false, features = ["multi-threaded","serialize"] }
+bevy = { version = "0.12", default-features = false, features = ["multi-threaded"] }
 ehttp = { version = "0.4.0", features = ["native-async"] }
 futures-lite = "2.2.0"
 serde = { version = "1.0", features = ["derive"] }
