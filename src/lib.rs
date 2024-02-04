@@ -1,11 +1,18 @@
-#![warn(missing_docs)]
-#![doc = include_str!("../README.md")]
+mod typed;
 
 use bevy::prelude::*;
-use bevy::tasks::{AsyncComputeTaskPool, Task};
+use bevy::tasks::{block_on, AsyncComputeTaskPool, Task};
 pub use ehttp;
 use ehttp::{Request, Response};
 use futures_lite::future;
+
+pub mod prelude {
+    pub use super::typed::{register_request_type, RequestBundle, TypedResponse};
+    pub use super::{
+        HttpClientPlugin, HttpClientSetting, HttpRequest, HttpResponse, HttpResponseError,
+        RequestTask,
+    };
+}
 
 /// Add the plugin to bevy to support send http request and handle response.
 ///
@@ -124,7 +131,7 @@ fn handle_response(
     mut request_tasks: Query<(Entity, &mut RequestTask)>,
 ) {
     for (entity, mut task) in request_tasks.iter_mut() {
-        if let Some(result) = future::block_on(future::poll_once(&mut task.0)) {
+        if let Some(result) = block_on(future::poll_once(&mut task.0)) {
             match result {
                 Ok(res) => {
                     commands

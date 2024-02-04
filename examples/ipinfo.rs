@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use bevy::{app::ScheduleRunnerPlugin, prelude::*};
-use bevy_http_client::*;
+use bevy_http_client::prelude::*;
 
 fn main() {
     App::new()
