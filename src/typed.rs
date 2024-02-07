@@ -7,15 +7,19 @@ use ehttp::{Request, Response};
 use serde::Deserialize;
 use std::marker::PhantomData;
 
+/// function required to call in order to add TypedResponse once request is finished
 pub fn register_request_type<T: Send + Sync + 'static>(app: &mut App) -> &mut App {
     app.add_systems(Update, handle_typed_response::<T>)
 }
 
+/// RequestBundle provides easy way to create request that after
+/// completing it will add TypedResponse with T type
 #[derive(Bundle, Debug, Clone)]
 pub struct RequestBundle<T>
 where
     T: Send + Sync + 'static,
 {
+    /// request that will be wrapped up
     pub request: HttpRequest,
     pub request_type: RequestType<T>,
 }
@@ -24,6 +28,7 @@ impl<T> RequestBundle<T>
 where
     T: Send + Sync + 'static,
 {
+    /// Recomended way to create a new RequestBundle of a given type.
     pub fn new(request: Request) -> Self {
         Self {
             request: HttpRequest(request),
