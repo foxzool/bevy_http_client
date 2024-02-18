@@ -1,8 +1,10 @@
+#![doc = include_str!("../README.md")]
+
 mod typed;
 
 use bevy::prelude::*;
-use bevy::tasks::{block_on, AsyncComputeTaskPool, Task};
-pub use ehttp;
+use bevy::tasks::{block_on, IoTaskPool, Task};
+
 use ehttp::{Request, Response};
 use futures_lite::future;
 
@@ -14,16 +16,16 @@ pub mod prelude {
     };
 }
 
-/// Add the plugin to bevy to support send http request and handle response.
+/// Plugin that provides support for send http request and handle response.
 ///
 /// # Example
-/// ```no_run
-/// # use bevy::prelude::*;
-/// # use bevy_http_client::HttpClientPlugin;
+/// ```
+/// use bevy::prelude::*;
+/// use bevy_http_client::prelude::*;
 ///
 /// App::new()
-/// .add_plugins(DefaultPlugins)
-/// .add_plugins(HttpClientPlugin).run();
+///     .add_plugins(DefaultPlugins)
+///     .add_plugins(HttpClientPlugin).run();
 /// ```
 #[derive(Default)]
 pub struct HttpClientPlugin;
@@ -109,7 +111,7 @@ fn handle_request(
     mut req_res: ResMut<HttpClientSetting>,
     requests: Query<(Entity, &HttpRequest), Without<RequestTask>>,
 ) {
-    let thread_pool = AsyncComputeTaskPool::get();
+    let thread_pool = IoTaskPool::get();
     for (entity, request) in requests.iter() {
         if req_res.is_available() {
             let req = request.clone();
