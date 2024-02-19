@@ -36,3 +36,19 @@ fn handle_response(mut commands: Commands, responses: Query<(Entity, &HttpRespon
     }
 }
 ```
+
+
+## Supported Versions
+
+| bevy | bevy_cronjob |
+|------|--------------|
+| 0.13 | 0.4          |
+| 0.12 | 0.3          |
+| 0.11 | 0.1          |
+
+## License
+
+Dual-licensed under either
+
+- MIT
+- Apache 2.0

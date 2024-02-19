@@ -3,10 +3,9 @@
 mod typed;
 
 use bevy::prelude::*;
-use bevy::tasks::{block_on, IoTaskPool, Task};
+use bevy::tasks::{block_on, poll_once, IoTaskPool, Task};
 
 use ehttp::{Request, Response};
-use futures_lite::future;
 
 pub mod prelude {
     pub use super::typed::{register_request_type, RequestBundle, TypedResponse};
@@ -133,7 +132,7 @@ fn handle_response(
     mut request_tasks: Query<(Entity, &mut RequestTask)>,
 ) {
     for (entity, mut task) in request_tasks.iter_mut() {
-        if let Some(result) = block_on(future::poll_once(&mut task.0)) {
+        if let Some(result) = block_on(poll_once(&mut task.0)) {
             match result {
                 Ok(res) => {
                     commands

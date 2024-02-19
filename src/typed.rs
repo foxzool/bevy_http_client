@@ -1,6 +1,6 @@
 use crate::{HttpRequest, HttpResponse, HttpResponseError};
 use bevy::ecs::bundle::Bundle;
-use bevy::ecs::query::{Added, WorldQuery};
+use bevy::ecs::query::{Added, QueryData};
 use bevy::prelude::{App, Update};
 use bevy::prelude::{Commands, Component, Entity, Query};
 use ehttp::{Request, Response};
@@ -69,16 +69,16 @@ where
     }
 }
 
-#[derive(WorldQuery)]
-#[world_query(mutable)]
+#[derive(QueryData)]
+#[query_data(mutable, derive(Debug))]
 pub struct TypedRequestQuery<T: Send + Sync + 'static> {
     pub entity: Entity,
     pub response: &'static HttpResponse,
     pub type_info: &'static RequestType<T>,
 }
 
-#[derive(WorldQuery)]
-#[world_query(mutable)]
+#[derive(QueryData)]
+#[query_data(mutable, derive(Debug))]
 pub struct TypedFailedRequestQuery<T: Send + Sync + 'static> {
     pub entity: Entity,
     pub response: &'static HttpResponseError,
