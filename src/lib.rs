@@ -7,13 +7,7 @@ use bevy::tasks::{block_on, poll_once, IoTaskPool, Task};
 
 use ehttp::{Request, Response};
 
-pub mod prelude {
-    pub use super::typed::{register_request_type, RequestBundle, TypedResponse};
-    pub use super::{
-        HttpClientPlugin, HttpClientSetting, HttpRequest, HttpResponse, HttpResponseError,
-        RequestTask,
-    };
-}
+pub mod prelude;
 
 /// Plugin that provides support for send http request and handle response.
 ///
