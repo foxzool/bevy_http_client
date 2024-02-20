@@ -5,7 +5,7 @@ mod typed;
 use bevy::prelude::*;
 use bevy::tasks::{block_on, poll_once, IoTaskPool, Task};
 
-use ehttp::{Request, Response};
+use ehttp::{Headers, Request, Response};
 
 pub mod prelude;
 
@@ -66,24 +66,336 @@ impl HttpClientSetting {
     }
 }
 
-/// wrap for ehttp request
 #[derive(Component, Debug, Clone, Deref, DerefMut)]
-pub struct HttpRequest(pub Request);
+pub struct HttpRequest {
+    pub request: Request,
+}
 
-impl HttpRequest {
-    /// create a new http request
-    pub fn new(request: Request) -> Self {
-        Self(request)
+/// builder  for ehttp request
+#[derive(Component, Debug, Clone)]
+pub struct HttpClient {
+    pub method: Option<String>,
+
+    /// https://…
+    pub url: Option<String>,
+
+    /// The data you send with e.g. "POST".
+    pub body: Vec<u8>,
+
+    /// ("Accept", "*/*"), …
+    pub headers: Option<Headers>,
+
+    /// Request mode used on fetch. Only available on wasm builds
+    #[cfg(target_arch = "wasm32")]
+    pub mode: Option<Mode>,
+}
+
+impl Default for HttpClient {
+    fn default() -> Self {
+        Self {
+            method: None,
+            url: None,
+            body: vec![],
+            headers: Some(Headers::new(&[("Accept", "*/*")])),
+            #[cfg(target_arch = "wasm32")]
+            mode: None,
+        }
+    }
+}
+
+impl HttpClient {
+    /// This method is used to create a new `HttpClient` instance.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new();
+    /// ```
+    pub fn new() -> Self {
+        Self::default()
     }
 
-    /// create a new http get request
-    pub fn get(url: impl ToString) -> Self {
-        Self(Request::get(url))
+    /// This method is used to create a `GET` HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().get("http://example.com");
+    /// ```
+    pub fn get(mut self, url: impl ToString) -> Self {
+        self.method = Some("GET".to_string());
+        self.url = Some(url.to_string());
+        self
     }
 
-    /// create a new http post request
-    pub fn post(url: &str, body: Vec<u8>) -> Self {
-        Self(Request::post(url, body))
+    /// This method is used to create a `POST` HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().post("http://example.com");
+    /// ```
+    pub fn post(mut self, url: impl ToString) -> Self {
+        self.method = Some("POST".to_string());
+        self.url = Some(url.to_string());
+        self
+    }
+
+    /// This method is used to create a `PUT` HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().put("http://example.com");
+    /// ```
+    pub fn put(mut self, url: impl ToString) -> Self {
+        self.method = Some("PUT".to_string());
+        self.url = Some(url.to_string());
+        self
+    }
+
+    /// This method is used to create a `PATCH` HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().patch("http://example.com");
+    /// ```
+    pub fn patch(mut self, url: impl ToString) -> Self {
+        self.method = Some("PATCH".to_string());
+        self.url = Some(url.to_string());
+        self
+    }
+
+    /// This method is used to create a `DELETE` HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().delete("http://example.com");
+    /// ```
+    pub fn delete(mut self, url: impl ToString) -> Self {
+        self.method = Some("DELETE".to_string());
+        self.url = Some(url.to_string());
+        self
+    }
+
+    /// This method is used to create a `HEAD` HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().head("http://example.com");
+    /// ```
+    pub fn head(mut self, url: impl ToString) -> Self {
+        self.method = Some("HEAD".to_string());
+        self.url = Some(url.to_string());
+        self
+    }
+
+    /// This method is used to set the headers of the HTTP request.
+    ///
+    /// # Arguments
+    ///
+    /// * `headers` - A slice of tuples where each tuple represents a header. The first element of the tuple is the header name and the second element is the header value.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().post("http://example.com")
+    ///     .headers(&[("Content-Type", "application/json"), ("Accept", "*/*")]);
+    /// ```
+    pub fn headers(mut self, headers: &[(&str, &str)]) -> Self {
+        self.headers = Some(Headers::new(headers));
+        self
+    }
+
+    /// This method is used to set the body of the HTTP request as a JSON payload.
+    /// It also sets the "Content-Type" header of the request to "application/json".
+    ///
+    /// # Arguments
+    ///
+    /// * `body` - A reference to any type that implements the `serde::Serialize` trait. This is the data that will be serialized to JSON and set as the body of the HTTP request.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Panics
+    ///
+    /// * This method will panic if the serialization of the `body` to JSON fails.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_client = HttpClient::new().post("http://example.com")
+    ///     .json(&data);
+    /// ```
+    pub fn json(mut self, body: &impl serde::Serialize) -> Self {
+        if let Some(headers) = self.headers.as_mut() {
+            headers.insert("Content-Type".to_string(), "application/json".to_string());
+        } else {
+            self.headers = Some(Headers::new(&[
+                ("Content-Type", "application/json"),
+                ("Accept", "*/*"),
+            ]));
+        }
+
+        self.body = serde_json::to_vec(body).unwrap();
+        self
+    }
+
+    /// This method is used to set the properties of the `HttpClient` instance using an `Request` instance.
+    /// This version of the method is used when the target architecture is not `wasm32`.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - An instance of `Request` which includes the HTTP method, URL, body, and headers.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let request = Request {
+    ///     method: "POST".to_string(),
+    ///     url: "http://example.com".to_string(),
+    ///     body: vec![],
+    ///     headers: Headers::new(&[("Content-Type", "application/json"), ("Accept", "*/*")]),
+    /// };
+    /// let http_client = HttpClient::new().request(request);
+    /// ```
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn request(mut self, request: Request) -> Self {
+        self.method = Some(request.method);
+        self.url = Some(request.url);
+        self.body = request.body;
+        self.headers = Some(request.headers);
+
+        self
+    }
+
+    /// This method is used to set the properties of the `HttpClient` instance using an `Request` instance.
+    /// This version of the method is used when the target architecture is `wasm32`.
+    ///
+    /// # Arguments
+    ///
+    /// * `request` - An instance of `Request` which includes the HTTP method, URL, body, headers, and mode.
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let request = Request {
+    ///     method: "POST".to_string(),
+    ///     url: "http://example.com".to_string(),
+    ///     body: vec![],
+    ///     headers: Headers::new(&[("Content-Type", "application/json"), ("Accept", "*/*")]),
+    ///     mode: Mode::Cors,
+    /// };
+    /// let http_client = HttpClient::new().request(request);
+    /// ```
+    #[cfg(target_arch = "wasm32")]
+    pub fn request(mut self, request: Request) -> Self {
+        self.method = Some(request.method);
+        self.url = Some(request.url);
+        self.body = request.body;
+        self.headers = Some(request.headers);
+        self.mode = Some(request.mode);
+
+        self
+    }
+
+    /// This method is used to build an `HttpRequest` from the `HttpClient` instance.
+    ///
+    /// # Returns
+    ///
+    /// * `HttpRequest` - Returns an `HttpRequest` instance which includes the HTTP method, URL, body, headers, and mode (only available on wasm builds).
+    ///
+    /// # Panics
+    ///
+    /// * This method will panic if the HTTP method, URL, or headers are not set in the `HttpClient` instance.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let http_request = HttpClient::new().post("http://example.com")
+    ///     .headers(&[("Content-Type", "application/json"), ("Accept", "*/*")])
+    ///     .json(&data)
+    ///     .build();
+    /// ```
+    pub fn build(self) -> HttpRequest {
+        HttpRequest {
+            request: Request {
+                method: self.method.expect("method is required"),
+                url: self.url.expect("url is required"),
+                body: self.body,
+                headers: self.headers.expect("headers is required"),
+                #[cfg(target_arch = "wasm32")]
+                mode: self.mode.expect("mode is required"),
+            },
+        }
     }
 }
 
@@ -109,7 +421,7 @@ fn handle_request(
         if req_res.is_available() {
             let req = request.clone();
 
-            let s = thread_pool.spawn(async { ehttp::fetch_async(req.0).await });
+            let s = thread_pool.spawn(async { ehttp::fetch_async(req.request).await });
 
             commands
                 .entity(entity)

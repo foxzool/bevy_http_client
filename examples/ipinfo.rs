@@ -13,8 +13,7 @@ fn main() {
 }
 
 fn send_request(mut commands: Commands) {
-    let req = ehttp::Request::get("https://api.ipify.org?format=json");
-    commands.spawn(HttpRequest(req));
+    commands.spawn(HttpClient::new().get("https://api.ipify.org").build());
 }
 
 fn handle_response(mut commands: Commands, responses: Query<(Entity, &HttpResponse)>) {

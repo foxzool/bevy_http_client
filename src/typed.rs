@@ -28,10 +28,10 @@ impl<T> RequestBundle<T>
 where
     T: Send + Sync + 'static,
 {
-    /// Recomended way to create a new RequestBundle of a given type.
+    /// Recommended way to create a new RequestBundle of a given type.
     pub fn new(request: Request) -> Self {
         Self {
-            request: HttpRequest(request),
+            request: HttpRequest { request },
             request_type: RequestType::<T>(PhantomData),
         }
     }
