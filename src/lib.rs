@@ -2,6 +2,7 @@
 
 mod typed;
 
+use bevy::ecs::system::CommandQueue;
 use bevy::prelude::*;
 use bevy::tasks::{block_on, poll_once, IoTaskPool, Task};
 
@@ -28,7 +29,7 @@ impl Plugin for HttpClientPlugin {
         if !app.world.contains_resource::<HttpClientSetting>() {
             app.init_resource::<HttpClientSetting>();
         }
-        app.add_systems(Update, (handle_request, handle_response));
+        app.add_systems(Update, (handle_request, handle_tasks));
     }
 }
 
@@ -409,7 +410,7 @@ pub struct HttpResponseError(pub String);
 
 /// task for ehttp response result
 #[derive(Component)]
-pub struct RequestTask(pub Task<Result<Response, ehttp::Error>>);
+pub struct RequestTask(pub Task<CommandQueue>);
 
 fn handle_request(
     mut commands: Commands,
@@ -421,39 +422,45 @@ fn handle_request(
         if req_res.is_available() {
             let req = request.clone();
 
-            let s = thread_pool.spawn(async { ehttp::fetch_async(req.request).await });
+            let task = thread_pool.spawn(async move {
+                let mut command_queue = CommandQueue::default();
+
+                let response = ehttp::fetch_async(req.request).await;
+                command_queue.push(move |world: &mut World| match response {
+                    Ok(res) => {
+                        world
+                            .entity_mut(entity)
+                            .insert(HttpResponse(res))
+                            .remove::<RequestTask>();
+                    }
+                    Err(e) => {
+                        world
+                            .entity_mut(entity)
+                            .insert(HttpResponseError(e))
+                            .remove::<RequestTask>();
+                    }
+                });
+
+                command_queue
+            });
 
             commands
                 .entity(entity)
                 .remove::<HttpRequest>()
-                .insert(RequestTask(s));
+                .insert(RequestTask(task));
             req_res.current_clients += 1;
         }
     }
 }
 
-fn handle_response(
+fn handle_tasks(
     mut commands: Commands,
     mut req_res: ResMut<HttpClientSetting>,
-    mut request_tasks: Query<(Entity, &mut RequestTask)>,
+    mut request_tasks: Query<&mut RequestTask>,
 ) {
-    for (entity, mut task) in request_tasks.iter_mut() {
-        if let Some(result) = block_on(poll_once(&mut task.0)) {
-            match result {
-                Ok(res) => {
-                    commands
-                        .entity(entity)
-                        .insert(HttpResponse(res))
-                        .remove::<RequestTask>();
-                }
-                Err(e) => {
-                    commands
-                        .entity(entity)
-                        .insert(HttpResponseError(e))
-                        .remove::<RequestTask>();
-                }
-            }
-
+    for mut task in request_tasks.iter_mut() {
+        if let Some(mut commands_queue) = block_on(poll_once(&mut task.0)) {
+            commands.append(&mut commands_queue);
             req_res.current_clients -= 1;
         }
     }
