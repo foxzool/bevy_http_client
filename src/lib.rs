@@ -72,22 +72,26 @@ impl HttpClientSetting {
 
 #[derive(Event, Debug, Clone)]
 pub struct HttpRequest {
+    pub from_entity: Option<Entity>,
     pub request: Request,
 }
 
 /// builder  for ehttp request
 #[derive(Component, Debug, Clone)]
 pub struct HttpClient {
-    pub method: Option<String>,
+    /// The entity that the request is associated with.
+    from_entity: Option<Entity>,
+    /// "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", …
+    method: Option<String>,
 
     /// https://…
-    pub url: Option<String>,
+    url: Option<String>,
 
     /// The data you send with e.g. "POST".
-    pub body: Vec<u8>,
+    body: Vec<u8>,
 
     /// ("Accept", "*/*"), …
-    pub headers: Option<Headers>,
+    headers: Option<Headers>,
 
     /// Request mode used on fetch. Only available on wasm builds
     #[cfg(target_arch = "wasm32")]
@@ -97,6 +101,7 @@ pub struct HttpClient {
 impl Default for HttpClient {
     fn default() -> Self {
         Self {
+            from_entity: None,
             method: None,
             url: None,
             body: vec![],
@@ -337,6 +342,29 @@ impl HttpClient {
         self
     }
 
+    /// Associates an `Entity` with the `HttpClient`.
+    ///
+    /// This method is used to associate an `Entity` with the `HttpClient`. This can be useful when you want to track which entity initiated the HTTP request.
+    ///
+    /// # Parameters
+    ///
+    /// * `entity`: The `Entity` that you want to associate with the `HttpClient`.
+    ///
+    /// # Returns
+    ///
+    /// A mutable reference to the `HttpClient`. This is used to allow method chaining.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let entity = commands.spawn().id();
+    /// let http_client = HttpClient::new().entity(entity);
+    /// ```
+    pub fn entity(mut self, entity: Entity) -> Self {
+        self.from_entity = Some(entity);
+        self
+    }
+
     /// This method is used to set the properties of the `HttpClient` instance using an `Request` instance.
     /// This version of the method is used when the target architecture is `wasm32`.
     ///
@@ -371,15 +399,17 @@ impl HttpClient {
         self
     }
 
-    /// This method is used to build an `HttpRequest` from the `HttpClient` instance.
+    /// Builds an `HttpRequest` from the `HttpClient` instance.
+    ///
+    /// This method is used to construct an `HttpRequest` from the current state of the `HttpClient` instance. The resulting `HttpRequest` includes the HTTP method, URL, body, headers, and mode (only available on wasm builds).
     ///
     /// # Returns
     ///
-    /// * `HttpRequest` - Returns an `HttpRequest` instance which includes the HTTP method, URL, body, headers, and mode (only available on wasm builds).
+    /// An `HttpRequest` instance which includes the HTTP method, URL, body, headers, and mode (only available on wasm builds).
     ///
     /// # Panics
     ///
-    /// * This method will panic if the HTTP method, URL, or headers are not set in the `HttpClient` instance.
+    /// This method will panic if the HTTP method, URL, or headers are not set in the `HttpClient` instance.
     ///
     /// # Examples
     ///
@@ -389,8 +419,13 @@ impl HttpClient {
     ///     .json(&data)
     ///     .build();
     /// ```
+    ///
+    /// # Note
+    ///
+    /// This method consumes the `HttpClient` instance, meaning it can only be called once per instance.
     pub fn build(self) -> HttpRequest {
         HttpRequest {
+            from_entity: self.from_entity,
             request: Request {
                 method: self.method.expect("method is required"),
                 url: self.url.expect("url is required"),
@@ -403,14 +438,17 @@ impl HttpClient {
     }
 
     pub fn with_type<T: for<'a> serde::Deserialize<'a>>(self) -> TypedRequest<T> {
-        TypedRequest::new(Request {
-            method: self.method.expect("method is required"),
-            url: self.url.expect("url is required"),
-            body: self.body,
-            headers: self.headers.expect("headers is required"),
-            #[cfg(target_arch = "wasm32")]
-            mode: self.mode.expect("mode is required"),
-        })
+        TypedRequest::new(
+            Request {
+                method: self.method.expect("method is required"),
+                url: self.url.expect("url is required"),
+                body: self.body,
+                headers: self.headers.expect("headers is required"),
+                #[cfg(target_arch = "wasm32")]
+                mode: self.mode.expect("mode is required"),
+            },
+            self.from_entity,
+        )
     }
 }
 
@@ -435,7 +473,12 @@ fn handle_request(
     for request in requests.read() {
         if req_res.is_available() {
             let req = request.clone();
-            let entity = commands.spawn_empty().id();
+            let (entity, has_from_entity) = if let Some(entity) = req.from_entity {
+                (entity, true)
+            } else {
+                (commands.spawn_empty().id(), false)
+            };
+
             let task = thread_pool.spawn(async move {
                 let mut command_queue = CommandQueue::default();
 
@@ -456,7 +499,11 @@ fn handle_request(
                         }
                     }
 
-                    world.entity_mut(entity).despawn_recursive();
+                    if has_from_entity {
+                        world.entity_mut(entity).remove::<RequestTask>();
+                    } else {
+                        world.entity_mut(entity).despawn_recursive();
+                    }
                 });
 
                 command_queue

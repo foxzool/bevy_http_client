@@ -2,7 +2,7 @@ use crate::{HttpClientSetting, HttpResponseError, RequestTask};
 use bevy::app::{App, PreUpdate};
 use bevy::ecs::system::CommandQueue;
 use bevy::hierarchy::DespawnRecursiveExt;
-use bevy::prelude::{Commands, Deref, Event, EventReader, Events, ResMut, World};
+use bevy::prelude::{Commands, Deref, Entity, Event, EventReader, Events, ResMut, World};
 use bevy::tasks::IoTaskPool;
 use ehttp::Request;
 use serde::Deserialize;
@@ -66,13 +66,15 @@ pub struct TypedRequest<T>
 where
     T: for<'a> Deserialize<'a>,
 {
+    pub from_entity: Option<Entity>,
     pub request: Request,
     inner: PhantomData<T>,
 }
 
 impl<T: for<'a> serde::Deserialize<'a>> TypedRequest<T> {
-    pub fn new(request: Request) -> Self {
+    pub fn new(request: Request, from_entity: Option<Entity>) -> Self {
         TypedRequest {
+            from_entity,
             request,
             inner: PhantomData,
         }
@@ -114,7 +116,11 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
     let thread_pool = IoTaskPool::get();
     for request in requests.read() {
         if req_res.is_available() {
-            let entity = commands.spawn_empty().id();
+            let (entity, has_from_entity) = if let Some(entity) = request.from_entity {
+                (entity, true)
+            } else {
+                (commands.spawn_empty().id(), false)
+            };
             let req = request.request.clone();
 
             let task = thread_pool.spawn(async move {
@@ -141,7 +147,11 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                         }
                     }
 
-                    world.entity_mut(entity).despawn_recursive();
+                    if has_from_entity {
+                        world.entity_mut(entity).remove::<RequestTask>();
+                    } else {
+                        world.entity_mut(entity).despawn_recursive();
+                    }
                 });
 
                 command_queue
