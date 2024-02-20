@@ -1,4 +1,5 @@
-pub use super::typed::{register_request_type, RequestBundle, TypedResponse};
+pub use super::typed::{HttpTypedRequestTrait, TypedRequest, TypedResponse};
 pub use super::{
-    HttpClient, HttpClientPlugin, HttpClientSetting, HttpResponse, HttpResponseError, RequestTask,
+    HttpClient, HttpClientPlugin, HttpClientSetting, HttpRequest, HttpResponse, HttpResponseError,
+    RequestTask,
 };

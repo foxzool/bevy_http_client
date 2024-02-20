@@ -1,14 +1,14 @@
 #![doc = include_str!("../README.md")]
 
-mod typed;
-
 use bevy::ecs::system::CommandQueue;
 use bevy::prelude::*;
 use bevy::tasks::{block_on, poll_once, IoTaskPool, Task};
 
+use crate::prelude::TypedRequest;
 use ehttp::{Headers, Request, Response};
 
 pub mod prelude;
+mod typed;
 
 /// Plugin that provides support for send http request and handle response.
 ///
@@ -29,23 +29,26 @@ impl Plugin for HttpClientPlugin {
         if !app.world.contains_resource::<HttpClientSetting>() {
             app.init_resource::<HttpClientSetting>();
         }
+        app.add_event::<HttpRequest>();
+        app.add_event::<HttpResponse>();
+        app.add_event::<HttpResponseError>();
         app.add_systems(Update, (handle_request, handle_tasks));
     }
 }
 
 /// The setting of http client.
 /// can set the max concurrent request.
-#[derive(Resource)]
+#[derive(Resource, Debug)]
 pub struct HttpClientSetting {
     /// max concurrent request
-    pub max_concurrent: usize,
+    pub client_limits: usize,
     current_clients: usize,
 }
 
 impl Default for HttpClientSetting {
     fn default() -> Self {
         Self {
-            max_concurrent: 5,
+            client_limits: 5,
             current_clients: 0,
         }
     }
@@ -55,7 +58,7 @@ impl HttpClientSetting {
     /// create a new http client setting
     pub fn new(max_concurrent: usize) -> Self {
         Self {
-            max_concurrent,
+            client_limits: max_concurrent,
             current_clients: 0,
         }
     }
@@ -63,11 +66,11 @@ impl HttpClientSetting {
     /// check if the client is available
     #[inline]
     pub fn is_available(&self) -> bool {
-        self.current_clients < self.max_concurrent
+        self.current_clients < self.client_limits
     }
 }
 
-#[derive(Component, Debug, Clone, Deref, DerefMut)]
+#[derive(Event, Debug, Clone)]
 pub struct HttpRequest {
     pub request: Request,
 }
@@ -398,14 +401,25 @@ impl HttpClient {
             },
         }
     }
+
+    pub fn with_type<T: for<'a> serde::Deserialize<'a>>(self) -> TypedRequest<T> {
+        TypedRequest::new(Request {
+            method: self.method.expect("method is required"),
+            url: self.url.expect("url is required"),
+            body: self.body,
+            headers: self.headers.expect("headers is required"),
+            #[cfg(target_arch = "wasm32")]
+            mode: self.mode.expect("mode is required"),
+        })
+    }
 }
 
 /// wrap for ehttp response
-#[derive(Component, Debug, Clone, Deref, DerefMut)]
+#[derive(Event, Debug, Clone, Deref)]
 pub struct HttpResponse(pub Response);
 
 /// wrap for ehttp error
-#[derive(Component, Debug, Clone, Deref, DerefMut)]
+#[derive(Event, Debug, Clone, Deref)]
 pub struct HttpResponseError(pub String);
 
 /// task for ehttp response result
@@ -415,39 +429,40 @@ pub struct RequestTask(pub Task<CommandQueue>);
 fn handle_request(
     mut commands: Commands,
     mut req_res: ResMut<HttpClientSetting>,
-    requests: Query<(Entity, &HttpRequest), Without<RequestTask>>,
+    mut requests: EventReader<HttpRequest>,
 ) {
     let thread_pool = IoTaskPool::get();
-    for (entity, request) in requests.iter() {
+    for request in requests.read() {
         if req_res.is_available() {
             let req = request.clone();
-
+            let entity = commands.spawn_empty().id();
             let task = thread_pool.spawn(async move {
                 let mut command_queue = CommandQueue::default();
 
                 let response = ehttp::fetch_async(req.request).await;
-                command_queue.push(move |world: &mut World| match response {
-                    Ok(res) => {
-                        world
-                            .entity_mut(entity)
-                            .insert(HttpResponse(res))
-                            .remove::<RequestTask>();
+                command_queue.push(move |world: &mut World| {
+                    match response {
+                        Ok(res) => {
+                            world
+                                .get_resource_mut::<Events<HttpResponse>>()
+                                .unwrap()
+                                .send(HttpResponse(res));
+                        }
+                        Err(e) => {
+                            world
+                                .get_resource_mut::<Events<HttpResponseError>>()
+                                .unwrap()
+                                .send(HttpResponseError(e.to_string()));
+                        }
                     }
-                    Err(e) => {
-                        world
-                            .entity_mut(entity)
-                            .insert(HttpResponseError(e))
-                            .remove::<RequestTask>();
-                    }
+
+                    world.entity_mut(entity).despawn_recursive();
                 });
 
                 command_queue
             });
 
-            commands
-                .entity(entity)
-                .remove::<HttpRequest>()
-                .insert(RequestTask(task));
+            commands.entity(entity).insert(RequestTask(task));
             req_res.current_clients += 1;
         }
     }

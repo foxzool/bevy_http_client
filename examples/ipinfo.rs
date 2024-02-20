@@ -12,13 +12,13 @@ fn main() {
         .run()
 }
 
-fn send_request(mut commands: Commands) {
-    commands.spawn(HttpClient::new().get("https://api.ipify.org").build());
+fn send_request(mut ev_request: EventWriter<HttpRequest>) {
+    let request = HttpClient::new().get("https://api.ipify.org").build();
+    ev_request.send(request);
 }
 
-fn handle_response(mut commands: Commands, responses: Query<(Entity, &HttpResponse)>) {
-    for (entity, response) in responses.iter() {
+fn handle_response(mut ev_resp: EventReader<HttpResponse>) {
+    for response in ev_resp.read() {
         println!("response: {:?}", response.text());
-        commands.entity(entity).despawn_recursive();
     }
 }
