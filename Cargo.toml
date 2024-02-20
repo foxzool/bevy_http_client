@@ -1,13 +1,13 @@
 [package]
 name = "bevy_http_client"
 description = "A simple HTTP client for Bevy"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 readme = "README.md"
 repository = "https://github.com/foxzool/bevy_http_client"
 authors = ["FoxZoOL <zhooul@gmail.com>"]
 license = "MIT OR Apache-2.0"
-keywords = ["bevy", "http", "plugin"]
+keywords = ["bevy", "http", "plugin", "wasm"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
