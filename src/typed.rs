@@ -4,7 +4,7 @@ use bevy::ecs::system::CommandQueue;
 use bevy::hierarchy::DespawnRecursiveExt;
 use bevy::prelude::{Commands, Deref, Entity, Event, EventReader, Events, ResMut, World};
 use bevy::tasks::IoTaskPool;
-use ehttp::Request;
+use ehttp::{Request, Response};
 use serde::Deserialize;
 use std::marker::PhantomData;
 
@@ -112,6 +112,7 @@ where
 pub struct TypedResponseError<T> {
     #[deref]
     pub err: String,
+    pub response: Option<Response>,
     phantom: PhantomData<T>,
 }
 
@@ -119,8 +120,14 @@ impl<T> TypedResponseError<T> {
     pub fn new(err: String) -> Self {
         Self {
             err,
+            response: None,
             phantom: Default::default(),
         }
+    }
+
+    pub fn response(mut self, response: Response) -> Self {
+        self.response = Some(response);
+        self
     }
 }
 
@@ -146,10 +153,11 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                 let response = ehttp::fetch_async(req).await;
                 command_queue.push(move |world: &mut World| {
                     match response {
-                        Ok(res) => {
-                            let res: Result<T, _> = serde_json::from_slice(res.bytes.as_slice());
+                        Ok(response) => {
+                            let result: Result<T, _> =
+                                serde_json::from_slice(response.bytes.as_slice());
 
-                            match res {
+                            match result {
                                 // deserialize success, send response
                                 Ok(inner) => {
                                     world
@@ -157,12 +165,15 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                                         .unwrap()
                                         .send(TypedResponse { inner });
                                 }
-                                // deserialize error, send error
+                                // deserialize error, send error + response
                                 Err(e) => {
                                     world
                                         .get_resource_mut::<Events<TypedResponseError<T>>>()
                                         .unwrap()
-                                        .send(TypedResponseError::new(e.to_string()));
+                                        .send(
+                                            TypedResponseError::new(e.to_string())
+                                                .response(response),
+                                        );
                                 }
                             }
                         }
