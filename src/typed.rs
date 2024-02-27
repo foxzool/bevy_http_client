@@ -108,8 +108,9 @@ where
     inner: T,
 }
 
-#[derive(Event, Debug, Clone)]
+#[derive(Event, Debug, Clone, Deref)]
 pub struct TypedResponseError<T> {
+    #[deref]
     pub err: String,
     phantom: PhantomData<T>,
 }
