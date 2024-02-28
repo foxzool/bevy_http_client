@@ -458,7 +458,15 @@ pub struct HttpResponse(pub Response);
 
 /// wrap for ehttp error
 #[derive(Event, Debug, Clone, Deref)]
-pub struct HttpResponseError(pub String);
+pub struct HttpResponseError {
+    pub err: String,
+}
+
+impl HttpResponseError {
+    pub fn new(err: String) -> Self {
+        Self { err }
+    }
+}
 
 /// task for ehttp response result
 #[derive(Component)]
@@ -495,7 +503,7 @@ fn handle_request(
                             world
                                 .get_resource_mut::<Events<HttpResponseError>>()
                                 .unwrap()
-                                .send(HttpResponseError(e.to_string()));
+                                .send(HttpResponseError::new(e.to_string()));
                         }
                     }
 

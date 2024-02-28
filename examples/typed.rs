@@ -10,7 +10,7 @@ pub struct IpInfo {
 fn main() {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, HttpClientPlugin))
-        .add_systems(Update, handle_response)
+        .add_systems(Update, (handle_response, handle_error))
         .add_systems(
             Update,
             send_request.run_if(on_timer(std::time::Duration::from_secs(1))),
@@ -30,5 +30,11 @@ fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
 fn handle_response(mut ev_response: EventReader<TypedResponse<IpInfo>>) {
     for response in ev_response.read() {
         println!("ip: {}", response.ip);
+    }
+}
+
+fn handle_error(mut ev_error: EventReader<TypedResponseError<IpInfo>>) {
+    for error in ev_error.read() {
+        println!("Error retrieving IP: {}", error.err);
     }
 }

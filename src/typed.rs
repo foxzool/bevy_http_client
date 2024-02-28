@@ -1,10 +1,10 @@
-use crate::{HttpClientSetting, HttpResponseError, RequestTask};
+use crate::{HttpClientSetting, RequestTask};
 use bevy::app::{App, PreUpdate};
 use bevy::ecs::system::CommandQueue;
 use bevy::hierarchy::DespawnRecursiveExt;
 use bevy::prelude::{Commands, Deref, Entity, Event, EventReader, Events, ResMut, World};
 use bevy::tasks::IoTaskPool;
-use ehttp::Request;
+use ehttp::{Request, Response};
 use serde::Deserialize;
 use std::marker::PhantomData;
 
@@ -37,6 +37,7 @@ impl HttpTypedRequestTrait for App {
     ) -> &mut Self {
         self.add_event::<TypedRequest<T>>();
         self.add_event::<TypedResponse<T>>();
+        self.add_event::<TypedResponseError<T>>();
         self.add_systems(PreUpdate, handle_typed_request::<T>);
         self
     }
@@ -107,6 +108,29 @@ where
     inner: T,
 }
 
+#[derive(Event, Debug, Clone, Deref)]
+pub struct TypedResponseError<T> {
+    #[deref]
+    pub err: String,
+    pub response: Option<Response>,
+    phantom: PhantomData<T>,
+}
+
+impl<T> TypedResponseError<T> {
+    pub fn new(err: String) -> Self {
+        Self {
+            err,
+            response: None,
+            phantom: Default::default(),
+        }
+    }
+
+    pub fn response(mut self, response: Response) -> Self {
+        self.response = Some(response);
+        self
+    }
+}
+
 /// A system that handles typed HTTP requests.
 fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
     mut commands: Commands,
@@ -129,21 +153,35 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                 let response = ehttp::fetch_async(req).await;
                 command_queue.push(move |world: &mut World| {
                     match response {
-                        Ok(res) => {
-                            serde_json::from_slice(res.bytes.as_slice())
-                                .map(|inner| {
+                        Ok(response) => {
+                            let result: Result<T, _> =
+                                serde_json::from_slice(response.bytes.as_slice());
+
+                            match result {
+                                // deserialize success, send response
+                                Ok(inner) => {
                                     world
                                         .get_resource_mut::<Events<TypedResponse<T>>>()
                                         .unwrap()
                                         .send(TypedResponse { inner });
-                                })
-                                .expect("Failed to deserialize response");
+                                }
+                                // deserialize error, send error + response
+                                Err(e) => {
+                                    world
+                                        .get_resource_mut::<Events<TypedResponseError<T>>>()
+                                        .unwrap()
+                                        .send(
+                                            TypedResponseError::new(e.to_string())
+                                                .response(response),
+                                        );
+                                }
+                            }
                         }
                         Err(e) => {
                             world
-                                .get_resource_mut::<Events<HttpResponseError>>()
+                                .get_resource_mut::<Events<TypedResponseError<T>>>()
                                 .unwrap()
-                                .send(HttpResponseError(e.to_string()));
+                                .send(TypedResponseError::new(e.to_string()));
                         }
                     }
 
