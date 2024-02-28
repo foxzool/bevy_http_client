@@ -146,56 +146,59 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                 (commands.spawn_empty().id(), false)
             };
             let req = request.request.clone();
+            let (tx, rx) = crossbeam_channel::bounded(1);
 
-            let task = thread_pool.spawn(async move {
-                let mut command_queue = CommandQueue::default();
+            thread_pool
+                .spawn(async move {
+                    let mut command_queue = CommandQueue::default();
 
-                let response = ehttp::fetch_async(req).await;
-                command_queue.push(move |world: &mut World| {
-                    match response {
-                        Ok(response) => {
-                            let result: Result<T, _> =
-                                serde_json::from_slice(response.bytes.as_slice());
+                    let response = ehttp::fetch_async(req).await;
+                    command_queue.push(move |world: &mut World| {
+                        match response {
+                            Ok(response) => {
+                                let result: Result<T, _> =
+                                    serde_json::from_slice(response.bytes.as_slice());
 
-                            match result {
-                                // deserialize success, send response
-                                Ok(inner) => {
-                                    world
-                                        .get_resource_mut::<Events<TypedResponse<T>>>()
-                                        .unwrap()
-                                        .send(TypedResponse { inner });
-                                }
-                                // deserialize error, send error + response
-                                Err(e) => {
-                                    world
-                                        .get_resource_mut::<Events<TypedResponseError<T>>>()
-                                        .unwrap()
-                                        .send(
-                                            TypedResponseError::new(e.to_string())
-                                                .response(response),
-                                        );
+                                match result {
+                                    // deserialize success, send response
+                                    Ok(inner) => {
+                                        world
+                                            .get_resource_mut::<Events<TypedResponse<T>>>()
+                                            .unwrap()
+                                            .send(TypedResponse { inner });
+                                    }
+                                    // deserialize error, send error + response
+                                    Err(e) => {
+                                        world
+                                            .get_resource_mut::<Events<TypedResponseError<T>>>()
+                                            .unwrap()
+                                            .send(
+                                                TypedResponseError::new(e.to_string())
+                                                    .response(response),
+                                            );
+                                    }
                                 }
                             }
+                            Err(e) => {
+                                world
+                                    .get_resource_mut::<Events<TypedResponseError<T>>>()
+                                    .unwrap()
+                                    .send(TypedResponseError::new(e.to_string()));
+                            }
                         }
-                        Err(e) => {
-                            world
-                                .get_resource_mut::<Events<TypedResponseError<T>>>()
-                                .unwrap()
-                                .send(TypedResponseError::new(e.to_string()));
+
+                        if has_from_entity {
+                            world.entity_mut(entity).remove::<RequestTask>();
+                        } else {
+                            world.entity_mut(entity).despawn_recursive();
                         }
-                    }
+                    });
 
-                    if has_from_entity {
-                        world.entity_mut(entity).remove::<RequestTask>();
-                    } else {
-                        world.entity_mut(entity).despawn_recursive();
-                    }
-                });
+                    tx.send(command_queue).unwrap()
+                })
+                .detach();
 
-                command_queue
-            });
-
-            commands.entity(entity).insert(RequestTask(task));
+            commands.entity(entity).insert(RequestTask(rx));
             req_res.current_clients += 1;
         }
     }

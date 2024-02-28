@@ -2,7 +2,8 @@
 
 use bevy::ecs::system::CommandQueue;
 use bevy::prelude::*;
-use bevy::tasks::{block_on, poll_once, IoTaskPool, Task};
+use bevy::tasks::IoTaskPool;
+use crossbeam_channel::Receiver;
 
 use crate::prelude::TypedRequest;
 use ehttp::{Headers, Request, Response};
@@ -95,7 +96,7 @@ pub struct HttpClient {
 
     /// Request mode used on fetch. Only available on wasm builds
     #[cfg(target_arch = "wasm32")]
-    pub mode: Option<Mode>,
+    pub mode: ehttp::Mode,
 }
 
 impl Default for HttpClient {
@@ -107,7 +108,7 @@ impl Default for HttpClient {
             body: vec![],
             headers: Some(Headers::new(&[("Accept", "*/*")])),
             #[cfg(target_arch = "wasm32")]
-            mode: None,
+            mode: ehttp::Mode::default(),
         }
     }
 }
@@ -394,7 +395,7 @@ impl HttpClient {
         self.url = Some(request.url);
         self.body = request.body;
         self.headers = Some(request.headers);
-        self.mode = Some(request.mode);
+        self.mode = request.mode;
 
         self
     }
@@ -432,7 +433,7 @@ impl HttpClient {
                 body: self.body,
                 headers: self.headers.expect("headers is required"),
                 #[cfg(target_arch = "wasm32")]
-                mode: self.mode.expect("mode is required"),
+                mode: self.mode,
             },
         }
     }
@@ -445,7 +446,7 @@ impl HttpClient {
                 body: self.body,
                 headers: self.headers.expect("headers is required"),
                 #[cfg(target_arch = "wasm32")]
-                mode: self.mode.expect("mode is required"),
+                mode: self.mode,
             },
             self.from_entity,
         )
@@ -469,8 +470,8 @@ impl HttpResponseError {
 }
 
 /// task for ehttp response result
-#[derive(Component)]
-pub struct RequestTask(pub Task<CommandQueue>);
+#[derive(Component, Debug)]
+pub struct RequestTask(pub Receiver<CommandQueue>);
 
 fn handle_request(
     mut commands: Commands,
@@ -486,38 +487,41 @@ fn handle_request(
             } else {
                 (commands.spawn_empty().id(), false)
             };
+            let (tx, rx) = crossbeam_channel::bounded(1);
 
-            let task = thread_pool.spawn(async move {
-                let mut command_queue = CommandQueue::default();
+            thread_pool
+                .spawn(async move {
+                    let mut command_queue = CommandQueue::default();
 
-                let response = ehttp::fetch_async(req.request).await;
-                command_queue.push(move |world: &mut World| {
-                    match response {
-                        Ok(res) => {
-                            world
-                                .get_resource_mut::<Events<HttpResponse>>()
-                                .unwrap()
-                                .send(HttpResponse(res));
+                    let response = ehttp::fetch_async(req.request).await;
+                    command_queue.push(move |world: &mut World| {
+                        match response {
+                            Ok(res) => {
+                                world
+                                    .get_resource_mut::<Events<HttpResponse>>()
+                                    .unwrap()
+                                    .send(HttpResponse(res));
+                            }
+                            Err(e) => {
+                                world
+                                    .get_resource_mut::<Events<HttpResponseError>>()
+                                    .unwrap()
+                                    .send(HttpResponseError::new(e.to_string()));
+                            }
                         }
-                        Err(e) => {
-                            world
-                                .get_resource_mut::<Events<HttpResponseError>>()
-                                .unwrap()
-                                .send(HttpResponseError::new(e.to_string()));
+
+                        if has_from_entity {
+                            world.entity_mut(entity).remove::<RequestTask>();
+                        } else {
+                            world.entity_mut(entity).despawn_recursive();
                         }
-                    }
+                    });
+                    println!("commands_queue: {:?}", command_queue);
+                    tx.send(command_queue).unwrap();
+                })
+                .detach();
 
-                    if has_from_entity {
-                        world.entity_mut(entity).remove::<RequestTask>();
-                    } else {
-                        world.entity_mut(entity).despawn_recursive();
-                    }
-                });
-
-                command_queue
-            });
-
-            commands.entity(entity).insert(RequestTask(task));
+            commands.entity(entity).insert(RequestTask(rx));
             req_res.current_clients += 1;
         }
     }
@@ -526,11 +530,11 @@ fn handle_request(
 fn handle_tasks(
     mut commands: Commands,
     mut req_res: ResMut<HttpClientSetting>,
-    mut request_tasks: Query<&mut RequestTask>,
+    mut request_tasks: Query<&RequestTask>,
 ) {
-    for mut task in request_tasks.iter_mut() {
-        if let Some(mut commands_queue) = block_on(poll_once(&mut task.0)) {
-            commands.append(&mut commands_queue);
+    for task in request_tasks.iter_mut() {
+        if let Ok(mut command_queue) = task.0.try_recv() {
+            commands.append(&mut command_queue);
             req_res.current_clients -= 1;
         }
     }
