@@ -1,4 +1,5 @@
-use crate::{HttpClientSetting, RequestTask};
+use std::marker::PhantomData;
+
 use bevy::app::{App, PreUpdate};
 use bevy::ecs::system::CommandQueue;
 use bevy::hierarchy::DespawnRecursiveExt;
@@ -6,7 +7,8 @@ use bevy::prelude::{Commands, Deref, Entity, Event, EventReader, Events, ResMut,
 use bevy::tasks::IoTaskPool;
 use ehttp::{Request, Response};
 use serde::Deserialize;
-use std::marker::PhantomData;
+
+use crate::{HttpClientSetting, RequestTask};
 
 pub trait HttpTypedRequestTrait {
     /// Registers a new request type `T` to the application.
@@ -106,6 +108,18 @@ where
 {
     #[deref]
     inner: T,
+}
+
+impl<T> TypedResponse<T> {
+    /// Returns a reference to the inner data contained in the HTTP response.
+    pub fn get_inner(&self) -> &T {
+        &self.inner
+    }
+
+    /// Consumes the HTTP response and returns the inner data.
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
 }
 
 #[derive(Event, Debug, Clone, Deref)]
