@@ -516,7 +516,7 @@ fn handle_request(
                             world.entity_mut(entity).despawn_recursive();
                         }
                     });
-                    println!("commands_queue: {:?}", command_queue);
+
                     tx.send(command_queue).unwrap();
                 })
                 .detach();

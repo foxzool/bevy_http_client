@@ -110,12 +110,7 @@ where
     inner: T,
 }
 
-impl<T> TypedResponse<T> {
-    /// Returns a reference to the inner data contained in the HTTP response.
-    pub fn get_inner(&self) -> &T {
-        &self.inner
-    }
-
+impl<T: for<'a> serde::Deserialize<'a>> TypedResponse<T> {
     /// Consumes the HTTP response and returns the inner data.
     pub fn into_inner(self) -> T {
         self.inner
