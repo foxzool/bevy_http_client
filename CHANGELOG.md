@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.5.2] - 2024-04-23
+
+* Fix: extract inner type [#8](https://github.com/foxzool/bevy_http_client/issues/8)
+
 ## [0.5.1] - 2024-02-28
 
 * Fix: Typed error handling [#6](https://github.com/foxzool/bevy_http_client/pull/6)
