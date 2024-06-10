@@ -1,7 +1,7 @@
 # bevy_http_client
 
 [![Crates.io](https://img.shields.io/crates/v/bevy_http_client)](https://crates.io/crates/bevy_http_client)
-[![crates.io](https://img.shields.io/crates/d/bevy_http_client)](https://crates.io/crates/bevy_cronjob)
+[![Downloads](https://img.shields.io/crates/d/bevy_http_client)](https://crates.io/crates/bevy_http_client)
 [![Documentation](https://docs.rs/bevy_http_client/badge.svg)](https://docs.rs/bevy_http_client)
 [![MIT/Apache 2.0](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/Seldom-SE/seldom_pixel#license)
 
@@ -56,7 +56,12 @@ fn handle_response(mut ev_response: EventReader<TypedResponse<IpInfo>>) {
 
 ## License
 
-Dual-licensed under either
+Dual-licensed under either:
 
-- MIT
-- Apache 2.0
+- [`MIT`](LICENSE-MIT): [http://opensource.org/licenses/MIT](http://opensource.org/licenses/MIT)
+- [`Apache 2.0`](LICENSE-APACHE): [http://www.apache.org/licenses/LICENSE-2.0](http://www.apache.org/licenses/LICENSE-2.0)
+
+at your option. This means that when using this crate in your game, you may choose which license to use.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in the work by you, as
+defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
