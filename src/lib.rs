@@ -1,6 +1,6 @@
 #![doc = include_str!("../README.md")]
 
-use bevy::ecs::system::CommandQueue;
+use bevy::ecs::world::CommandQueue;
 use bevy::prelude::*;
 use bevy::tasks::IoTaskPool;
 use crossbeam_channel::Receiver;
@@ -27,7 +27,7 @@ pub struct HttpClientPlugin;
 
 impl Plugin for HttpClientPlugin {
     fn build(&self, app: &mut App) {
-        if !app.world.contains_resource::<HttpClientSetting>() {
+        if !app.world().contains_resource::<HttpClientSetting>() {
             app.init_resource::<HttpClientSetting>();
         }
         app.add_event::<HttpRequest>();

@@ -9,7 +9,7 @@ fn main() {
             Update,
             send_request.run_if(on_timer(std::time::Duration::from_secs(1))),
         )
-        .run()
+        .run();
 }
 
 fn send_request(mut ev_request: EventWriter<HttpRequest>) {

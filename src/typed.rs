@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 use bevy::app::{App, PreUpdate};
-use bevy::ecs::system::CommandQueue;
+use bevy::ecs::world::CommandQueue;
 use bevy::hierarchy::DespawnRecursiveExt;
 use bevy::prelude::{Commands, Deref, Entity, Event, EventReader, Events, ResMut, World};
 use bevy::tasks::IoTaskPool;
