@@ -1,12 +1,10 @@
 #![doc = include_str!("../README.md")]
 
-use bevy::ecs::world::CommandQueue;
-use bevy::prelude::*;
-use bevy::tasks::IoTaskPool;
+use bevy::{ecs::world::CommandQueue, prelude::*, tasks::IoTaskPool};
 use crossbeam_channel::Receiver;
+use ehttp::{Headers, Request, Response};
 
 use crate::prelude::TypedRequest;
-use ehttp::{Headers, Request, Response};
 
 pub mod prelude;
 mod typed;
@@ -133,7 +131,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP
+    ///   request will be sent.
     ///
     /// # Returns
     ///
@@ -154,7 +153,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP
+    ///   request will be sent.
     ///
     /// # Returns
     ///
@@ -175,7 +175,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP
+    ///   request will be sent.
     ///
     /// # Returns
     ///
@@ -196,7 +197,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP
+    ///   request will be sent.
     ///
     /// # Returns
     ///
@@ -217,7 +219,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP
+    ///   request will be sent.
     ///
     /// # Returns
     ///
@@ -238,7 +241,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP request will be sent.
+    /// * `url` - A value that can be converted into a string. This is the URL to which the HTTP
+    ///   request will be sent.
     ///
     /// # Returns
     ///
@@ -259,7 +263,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `headers` - A slice of tuples where each tuple represents a header. The first element of the tuple is the header name and the second element is the header value.
+    /// * `headers` - A slice of tuples where each tuple represents a header. The first element of
+    ///   the tuple is the header name and the second element is the header value.
     ///
     /// # Returns
     ///
@@ -281,7 +286,8 @@ impl HttpClient {
     ///
     /// # Arguments
     ///
-    /// * `body` - A reference to any type that implements the `serde::Serialize` trait. This is the data that will be serialized to JSON and set as the body of the HTTP request.
+    /// * `body` - A reference to any type that implements the `serde::Serialize` trait. This is the
+    ///   data that will be serialized to JSON and set as the body of the HTTP request.
     ///
     /// # Returns
     ///
@@ -311,12 +317,14 @@ impl HttpClient {
         self
     }
 
-    /// This method is used to set the properties of the `HttpClient` instance using an `Request` instance.
-    /// This version of the method is used when the target architecture is not `wasm32`.
+    /// This method is used to set the properties of the `HttpClient` instance using an `Request`
+    /// instance. This version of the method is used when the target architecture is not
+    /// `wasm32`.
     ///
     /// # Arguments
     ///
-    /// * `request` - An instance of `Request` which includes the HTTP method, URL, body, and headers.
+    /// * `request` - An instance of `Request` which includes the HTTP method, URL, body, and
+    ///   headers.
     ///
     /// # Returns
     ///
@@ -345,7 +353,8 @@ impl HttpClient {
 
     /// Associates an `Entity` with the `HttpClient`.
     ///
-    /// This method is used to associate an `Entity` with the `HttpClient`. This can be useful when you want to track which entity initiated the HTTP request.
+    /// This method is used to associate an `Entity` with the `HttpClient`. This can be useful when
+    /// you want to track which entity initiated the HTTP request.
     ///
     /// # Parameters
     ///
@@ -366,12 +375,13 @@ impl HttpClient {
         self
     }
 
-    /// This method is used to set the properties of the `HttpClient` instance using an `Request` instance.
-    /// This version of the method is used when the target architecture is `wasm32`.
+    /// This method is used to set the properties of the `HttpClient` instance using an `Request`
+    /// instance. This version of the method is used when the target architecture is `wasm32`.
     ///
     /// # Arguments
     ///
-    /// * `request` - An instance of `Request` which includes the HTTP method, URL, body, headers, and mode.
+    /// * `request` - An instance of `Request` which includes the HTTP method, URL, body, headers,
+    ///   and mode.
     ///
     /// # Returns
     ///
@@ -402,15 +412,19 @@ impl HttpClient {
 
     /// Builds an `HttpRequest` from the `HttpClient` instance.
     ///
-    /// This method is used to construct an `HttpRequest` from the current state of the `HttpClient` instance. The resulting `HttpRequest` includes the HTTP method, URL, body, headers, and mode (only available on wasm builds).
+    /// This method is used to construct an `HttpRequest` from the current state of the `HttpClient`
+    /// instance. The resulting `HttpRequest` includes the HTTP method, URL, body, headers, and mode
+    /// (only available on wasm builds).
     ///
     /// # Returns
     ///
-    /// An `HttpRequest` instance which includes the HTTP method, URL, body, headers, and mode (only available on wasm builds).
+    /// An `HttpRequest` instance which includes the HTTP method, URL, body, headers, and mode (only
+    /// available on wasm builds).
     ///
     /// # Panics
     ///
-    /// This method will panic if the HTTP method, URL, or headers are not set in the `HttpClient` instance.
+    /// This method will panic if the HTTP method, URL, or headers are not set in the `HttpClient`
+    /// instance.
     ///
     /// # Examples
     ///
@@ -423,7 +437,8 @@ impl HttpClient {
     ///
     /// # Note
     ///
-    /// This method consumes the `HttpClient` instance, meaning it can only be called once per instance.
+    /// This method consumes the `HttpClient` instance, meaning it can only be called once per
+    /// instance.
     pub fn build(self) -> HttpRequest {
         HttpRequest {
             from_entity: self.from_entity,

@@ -1,10 +1,12 @@
 use std::marker::PhantomData;
 
-use bevy::app::{App, PreUpdate};
-use bevy::ecs::world::CommandQueue;
-use bevy::hierarchy::DespawnRecursiveExt;
-use bevy::prelude::{Commands, Deref, Entity, Event, EventReader, Events, ResMut, World};
-use bevy::tasks::IoTaskPool;
+use bevy::{
+    app::{App, PreUpdate},
+    ecs::world::CommandQueue,
+    hierarchy::DespawnRecursiveExt,
+    prelude::{Commands, Deref, Entity, Event, EventReader, Events, ResMut, World},
+    tasks::IoTaskPool,
+};
 use ehttp::{Request, Response};
 use serde::Deserialize;
 
@@ -13,7 +15,10 @@ use crate::{HttpClientSetting, RequestTask};
 pub trait HttpTypedRequestTrait {
     /// Registers a new request type `T` to the application.
     ///
-    /// This method is used to register a new request type `T` to the application. The request type `T` must implement the `Deserialize` trait, and be `Send` and `Sync`. This is necessary for the request type to be safely shared across threads and for it to be deserialized from a HTTP response.
+    /// This method is used to register a new request type `T` to the application. The request type
+    /// `T` must implement the `Deserialize` trait, and be `Send` and `Sync`. This is necessary for
+    /// the request type to be safely shared across threads and for it to be deserialized from a
+    /// HTTP response.
     ///
     /// # Type Parameters
     ///
@@ -47,11 +52,14 @@ impl HttpTypedRequestTrait for App {
 
 /// A struct that represents a typed HTTP request.
 ///
-/// This struct is used to represent a typed HTTP request. The type `T` is the type of the data that is expected to be returned by the HTTP request. The `Request` is the actual HTTP request that will be sent.
+/// This struct is used to represent a typed HTTP request. The type `T` is the type of the data that
+/// is expected to be returned by the HTTP request. The `Request` is the actual HTTP request that
+/// will be sent.
 ///
 /// # Type Parameters
 ///
-/// * `T`: The type of the data that is expected to be returned by the HTTP request. This type must implement `Deserialize`.
+/// * `T`: The type of the data that is expected to be returned by the HTTP request. This type must
+///   implement `Deserialize`.
 ///
 /// # Fields
 ///
@@ -86,11 +94,14 @@ impl<T: for<'a> serde::Deserialize<'a>> TypedRequest<T> {
 
 /// A struct that represents a typed HTTP response.
 ///
-/// This struct is used to represent a typed HTTP response. The type `T` is the type of the data that is expected to be contained in the HTTP response. The `inner` field is the actual data contained in the HTTP response.
+/// This struct is used to represent a typed HTTP response. The type `T` is the type of the data
+/// that is expected to be contained in the HTTP response. The `inner` field is the actual data
+/// contained in the HTTP response.
 ///
 /// # Type Parameters
 ///
-/// * `T`: The type of the data that is expected to be contained in the HTTP response. This type must implement `Deserialize`.
+/// * `T`: The type of the data that is expected to be contained in the HTTP response. This type
+///   must implement `Deserialize`.
 ///
 /// # Fields
 ///
