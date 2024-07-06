@@ -1,10 +1,8 @@
 #![doc = include_str!("../README.md")]
 
-
-use bevy_ecs::world::CommandQueue;
 use bevy_app::{App, Plugin, Update};
 use bevy_derive::Deref;
-use bevy_ecs::prelude::*;
+use bevy_ecs::{prelude::*, world::CommandQueue};
 use bevy_hierarchy::DespawnRecursiveExt;
 use bevy_tasks::IoTaskPool;
 use crossbeam_channel::Receiver;

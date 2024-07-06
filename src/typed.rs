@@ -1,13 +1,11 @@
-use bevy_ecs::world::CommandQueue;
-use bevy_tasks::IoTaskPool;
-use std::marker::PhantomData;
 use bevy_app::{App, PreUpdate};
 use bevy_derive::Deref;
-use bevy_ecs::prelude::*;
-use bevy_ecs::system::Commands;
+use bevy_ecs::{prelude::*, system::Commands, world::CommandQueue};
 use bevy_hierarchy::DespawnRecursiveExt;
+use bevy_tasks::IoTaskPool;
 use ehttp::{Request, Response};
 use serde::Deserialize;
+use std::marker::PhantomData;
 
 use crate::{HttpClientSetting, RequestTask};
 
