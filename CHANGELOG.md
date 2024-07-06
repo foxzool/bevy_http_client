@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.6.0] - 2024-07-05
+
+- bump bevy version to 0.14.0
+
 ## [0.5.2] - 2024-04-23
 
 * Fix: extract inner type [#8](https://github.com/foxzool/bevy_http_client/issues/8)
