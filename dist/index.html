@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+    <title>Bevy http client exmaple</title>
+</head>
+<body style="margin: 0;">
+<script type="module">
+    import init from './httpclient.js'
+
+    init().catch((error) => {
+        if (!error.message.startsWith("Using exceptions for control flow, don't mind me. This isn't actually an error!")) {
+            throw error;
+        }
+    });
+</script>
+<canvas id="bevy">
+    Javascript and support for canvas is required
+</canvas>
+</body>
+
+</html>
