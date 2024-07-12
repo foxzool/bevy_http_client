@@ -19,10 +19,13 @@ jobs:
           toolchain: stable
       - name: Install Dependencies
         run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev
-      - name: Install trunk
-        uses: jetli/trunk-action@v0.4.0
-        with:
-          version: 'latest'
+      #      - name: Install trunk
+      #        uses: jetli/trunk-action@v0.4.0
+      #        with:
+      #          version: 'latest'
+      - name: Install wasm-bindgen
+        run: |
+          cargo install wasm-bindgen-cli
       - name: Add wasm target
         run: |
           rustup target add wasm32-unknown-unknown
