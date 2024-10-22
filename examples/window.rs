@@ -64,10 +64,10 @@ fn setup(mut commands: Commands) {
 
 fn send_request(
     mut ev_request: EventWriter<HttpRequest>,
-    mut body_query: Query<&mut Text, (With<ResponseText>, Without<ResponseIP>)>,
+    mut status_query: Query<&mut Text, (With<ResponseText>, Without<ResponseIP>)>,
     mut ip_query: Query<&mut Text, (With<ResponseIP>, Without<ResponseText>)>,
 ) {
-    body_query.single_mut().0 = "Requesting ".to_string();
+    status_query.single_mut().0 = "Requesting ".to_string();
     ip_query.single_mut().0 = "".to_string();
     let request = HttpClient::new().get("https://api.ipify.org").build();
     ev_request.send(request);
@@ -75,13 +75,13 @@ fn send_request(
 
 fn handle_response(
     mut ev_resp: EventReader<HttpResponse>,
-    mut body_query: Query<&mut Text, (With<ResponseText>, Without<ResponseIP>)>,
+    mut status_query: Query<&mut Text, (With<ResponseText>, Without<ResponseIP>)>,
     mut ip_query: Query<&mut Text, (With<ResponseIP>, Without<ResponseText>)>,
 ) {
     for response in ev_resp.read() {
         let ip = response.text().unwrap_or_default();
         ip_query.single_mut().0 = ip.to_string();
-        body_query.single_mut().0 = "Got ".to_string();
+        status_query.single_mut().0 = "Got ".to_string();
     }
 }
 fn handle_error(mut ev_error: EventReader<HttpResponseError>) {
