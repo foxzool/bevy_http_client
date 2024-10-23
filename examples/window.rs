@@ -47,17 +47,39 @@ fn setup(mut commands: Commands) {
                 padding: UiRect::all(Val::Px(5.0)),
                 display: Display::Grid,
                 ..default()
-            }, 
+            },
             ZIndex(i32::MAX), 
             BackgroundColor(Color::BLACK.with_alpha(0.75)),
         )).with_children(|parent| {
+            let text_font = TextFont {
+                font_size: 40.,
+                ..default()
+            };  
             parent.spawn(Node::default()).with_children(|parent| {
-                parent.spawn((Text::new("Status: "), TextColor(LIME.into())));
-                parent.spawn((Text::new(""), TextColor(AQUA.into()), ResponseText));
+                parent.spawn((
+                    Text::new("Status: "), 
+                    TextColor(LIME.into()), 
+                    text_font.clone(),
+                ));
+                parent.spawn((
+                    Text::new(""), 
+                    TextColor(AQUA.into()), 
+                    text_font.clone(), 
+                    ResponseText
+                ));
             });
             parent.spawn(Node::default()).with_children(|parent| {
-                parent.spawn((Text::new("Ip: "), TextColor(LIME.into())));
-                parent.spawn((Text::new(""), TextColor(AQUA.into()) , ResponseIP));
+                parent.spawn((
+                    Text::new("Ip: "), 
+                    TextColor(LIME.into()), 
+                    text_font.clone()
+                ));
+                parent.spawn((
+                    Text::new(""), 
+                    TextColor(AQUA.into()), 
+                    text_font.clone(), 
+                    ResponseIP
+                ));
             });
         });
 }
