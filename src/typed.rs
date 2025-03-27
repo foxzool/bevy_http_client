@@ -1,7 +1,6 @@
 use bevy_app::{App, PreUpdate};
 use bevy_derive::Deref;
 use bevy_ecs::{prelude::*, system::Commands, world::CommandQueue};
-use bevy_hierarchy::DespawnRecursiveExt;
 use bevy_tasks::IoTaskPool;
 use ehttp::{Request, Response};
 use serde::Deserialize;
@@ -207,7 +206,7 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                         if has_from_entity {
                             world.entity_mut(entity).remove::<RequestTask>();
                         } else {
-                            world.entity_mut(entity).despawn_recursive();
+                            world.entity_mut(entity).despawn();
                         }
                     });
 

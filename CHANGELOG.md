@@ -1,5 +1,13 @@
 # Changelog
 
+## [Unreleased]
+
+- bump bevy version to 0.16.0
+
+## [0.7.0] - 2024-11-30
+
+- bump bevy version to 0.15.0
+
 ## [0.6.0] - 2024-07-05
 
 - bump bevy version to 0.14.0

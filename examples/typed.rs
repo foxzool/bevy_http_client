@@ -27,12 +27,6 @@ fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
     );
 }
 
-// fn handle_response(mut ev_response: EventReader<TypedResponse<IpInfo>>) {
-//     for response in ev_response.read() {
-//         println!("ip: {}", response.ip);
-//     }
-// }
-
 /// consume TypedResponse<IpInfo> events
 fn handle_response(mut events: ResMut<Events<TypedResponse<IpInfo>>>) {
     for response in events.drain() {

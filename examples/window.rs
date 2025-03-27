@@ -86,10 +86,15 @@ fn send_request(
     mut status_query: Query<&mut Text, (With<ResponseText>, Without<ResponseIP>)>,
     mut ip_query: Query<&mut Text, (With<ResponseIP>, Without<ResponseText>)>,
 ) {
-    status_query.single_mut().0 = "Requesting ".to_string();
-    ip_query.single_mut().0 = "".to_string();
+    if let Ok(mut text) = status_query.single_mut() {
+        text.0 = "Requesting ".to_string();
+    }
+    if let Ok(mut ip) = ip_query.single_mut() {
+        ip.0 = "".to_string();
+    }
+
     let request = HttpClient::new().get("https://api.ipify.org").build();
-    ev_request.send(request);
+    ev_request.write(request);
 }
 
 fn handle_response(
@@ -98,9 +103,12 @@ fn handle_response(
     mut ip_query: Query<&mut Text, (With<ResponseIP>, Without<ResponseText>)>,
 ) {
     for response in ev_resp.read() {
-        let ip = response.text().unwrap_or_default();
-        ip_query.single_mut().0 = ip.to_string();
-        status_query.single_mut().0 = "Got ".to_string();
+        if let Ok(mut text) = status_query.single_mut() {
+            text.0 = "Got ".to_string();
+        }
+        if let Ok(mut ip) = ip_query.single_mut() {
+            ip.0 = response.text().unwrap_or_default().to_string();
+        }
     }
 }
 fn handle_error(mut ev_error: EventReader<HttpResponseError>) {

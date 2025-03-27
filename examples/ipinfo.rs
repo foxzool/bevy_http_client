@@ -15,7 +15,7 @@ fn main() {
 
 fn send_request(mut ev_request: EventWriter<HttpRequest>) {
     let request = HttpClient::new().get("https://api.ipify.org").build();
-    ev_request.send(request);
+    ev_request.write(request);
 }
 
 fn handle_response(mut ev_resp: EventReader<HttpResponse>) {

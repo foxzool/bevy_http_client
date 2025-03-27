@@ -1,5 +1,6 @@
 # bevy_http_client
 
+[![CI](https://github.com/foxzool/bevy_http_client/workflows/CI/badge.svg)](https://github.com/foxzool/bevy_http_client/actions)
 [![Crates.io](https://img.shields.io/crates/v/bevy_http_client)](https://crates.io/crates/bevy_http_client)
 [![Downloads](https://img.shields.io/crates/d/bevy_http_client)](https://crates.io/crates/bevy_http_client)
 [![Documentation](https://docs.rs/bevy_http_client/badge.svg)](https://docs.rs/bevy_http_client)
@@ -22,7 +23,7 @@ pub struct IpInfo {
 fn main() {
     let mut app = App::new();
     app.add_plugins((MinimalPlugins, HttpClientPlugin))
-        .add_systems(Update, handle_response)
+        .add_systems(Update, (handle_response, handle_error))
         .add_systems(
             Update,
             send_request.run_if(on_timer(std::time::Duration::from_secs(1))),
@@ -39,17 +40,27 @@ fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
     );
 }
 
-fn handle_response(mut ev_response: EventReader<TypedResponse<IpInfo>>) {
-    for response in ev_response.read() {
-        println!("ip: {}", response.ip);
+/// consume TypedResponse<IpInfo> events
+fn handle_response(mut events: ResMut<Events<TypedResponse<IpInfo>>>) {
+    for response in events.drain() {
+        let response: IpInfo = response.into_inner();
+        println!("ip info: {:?}", response);
     }
 }
+
+fn handle_error(mut ev_error: EventReader<TypedResponseError<IpInfo>>) {
+    for error in ev_error.read() {
+        println!("Error retrieving IP: {}", error.err);
+    }
+}
+
 ```
 
 ## Supported Versions
 
 | bevy | bevy_http_client |
 |------|------------------|
+| 0.16 | 0.8              |
 | 0.15 | 0.7              |
 | 0.14 | 0.6              |
 | 0.13 | 0.4, 0,5         |

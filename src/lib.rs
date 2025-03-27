@@ -3,7 +3,6 @@
 use bevy_app::{App, Plugin, Update};
 use bevy_derive::Deref;
 use bevy_ecs::{prelude::*, world::CommandQueue};
-use bevy_hierarchy::DespawnRecursiveExt;
 use bevy_tasks::IoTaskPool;
 use crossbeam_channel::Receiver;
 use ehttp::{Headers, Request, Response};
@@ -532,7 +531,7 @@ fn handle_request(
                         if has_from_entity {
                             world.entity_mut(entity).remove::<RequestTask>();
                         } else {
-                            world.entity_mut(entity).despawn_recursive();
+                            world.entity_mut(entity).despawn();
                         }
                     });
 
