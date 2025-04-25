@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.8.0]
 
 - bump bevy version to 0.16.0
 
