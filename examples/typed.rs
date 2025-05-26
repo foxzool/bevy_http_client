@@ -20,7 +20,7 @@ fn main() {
 }
 
 fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
-    ev_request.send(
+    ev_request.write(
         HttpClient::new()
             .get("https://api.ipify.org?format=json")
             .with_type::<IpInfo>(),

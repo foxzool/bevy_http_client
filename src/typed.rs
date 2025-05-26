@@ -6,7 +6,7 @@ use ehttp::{Request, Response};
 use serde::Deserialize;
 use std::marker::PhantomData;
 
-use crate::{HttpClientSetting, RequestTask};
+use crate::{HttpClientSetting, RequestTask, get_channel};
 
 pub trait HttpTypedRequestTrait {
     /// Registers a new request type `T` to the application.
@@ -29,13 +29,13 @@ pub trait HttpTypedRequestTrait {
     /// ```
     /// app.register_request_type::<MyRequestType>();
     /// ```
-    fn register_request_type<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
+    fn register_request_type<T: for<'a> Deserialize<'a> + Send + Sync + 'static + Clone>(
         &mut self,
     ) -> &mut Self;
 }
 
 impl HttpTypedRequestTrait for App {
-    fn register_request_type<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
+    fn register_request_type<T: for<'a> Deserialize<'a> + Send + Sync + 'static + Clone>(
         &mut self,
     ) -> &mut Self {
         self.add_event::<TypedRequest<T>>();
@@ -148,10 +148,11 @@ impl<T> TypedResponseError<T> {
 }
 
 /// A system that handles typed HTTP requests.
-fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
+fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'static>(
     mut commands: Commands,
     mut req_res: ResMut<HttpClientSetting>,
     mut requests: EventReader<TypedRequest<T>>,
+    q_tasks: Query<&RequestTask>,
 ) {
     let thread_pool = IoTaskPool::get();
     for request in requests.read() {
@@ -162,8 +163,7 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                 (commands.spawn_empty().id(), false)
             };
             let req = request.request.clone();
-            let (tx, rx) = crossbeam_channel::bounded(1);
-
+            let tx = get_channel(&mut commands, q_tasks, entity);
             thread_pool
                 .spawn(async move {
                     let mut command_queue = CommandQueue::default();
@@ -181,7 +181,10 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                                         world
                                             .get_resource_mut::<Events<TypedResponse<T>>>()
                                             .unwrap()
-                                            .send(TypedResponse { inner });
+                                            .send(TypedResponse {
+                                                inner: inner.clone(),
+                                            });
+                                        world.trigger_targets(TypedResponse { inner }, entity);
                                     }
                                     // deserialize error, send error + response
                                     Err(e) => {
@@ -190,8 +193,14 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                                             .unwrap()
                                             .send(
                                                 TypedResponseError::new(e.to_string())
-                                                    .response(response),
+                                                    .response(response.clone()),
                                             );
+
+                                        world.trigger_targets(
+                                            TypedResponseError::<T>::new(e.to_string())
+                                                .response(response),
+                                            entity,
+                                        );
                                     }
                                 }
                             }
@@ -203,9 +212,7 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                             }
                         }
 
-                        if has_from_entity {
-                            world.entity_mut(entity).remove::<RequestTask>();
-                        } else {
+                        if !has_from_entity {
                             world.entity_mut(entity).despawn();
                         }
                     });
@@ -214,7 +221,6 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + 'static>(
                 })
                 .detach();
 
-            commands.entity(entity).insert(RequestTask(rx));
             req_res.current_clients += 1;
         }
     }

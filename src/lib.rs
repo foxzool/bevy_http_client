@@ -4,7 +4,7 @@ use bevy_app::{App, Plugin, Update};
 use bevy_derive::Deref;
 use bevy_ecs::{prelude::*, world::CommandQueue};
 use bevy_tasks::IoTaskPool;
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{Receiver, Sender};
 use ehttp::{Headers, Request, Response};
 
 use crate::prelude::TypedRequest;
@@ -128,6 +128,27 @@ impl HttpClient {
     /// ```
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// his method is used to create a new `HttpClient` instance with `Entity`.
+    ///
+    /// # Arguments
+    ///
+    /// * `entity`: Target Entity
+    ///
+    /// returns: HttpClient
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let e = commands.spawn().id();
+    /// let http_client = HttpClient::new_with_entity(e)
+    /// ```
+    pub fn new_with_entity(entity: Entity) -> Self {
+        Self {
+            from_entity: Some(entity),
+            ..Default::default()
+        }
     }
 
     /// This method is used to create a `GET` HTTP request.
@@ -489,12 +510,16 @@ impl HttpResponseError {
 
 /// task for ehttp response result
 #[derive(Component, Debug)]
-pub struct RequestTask(pub Receiver<CommandQueue>);
+pub struct RequestTask {
+    tx: Sender<CommandQueue>,
+    rx: Receiver<CommandQueue>,
+}
 
 fn handle_request(
     mut commands: Commands,
     mut req_res: ResMut<HttpClientSetting>,
     mut requests: EventReader<HttpRequest>,
+    q_tasks: Query<&RequestTask>,
 ) {
     let thread_pool = IoTaskPool::get();
     for request in requests.read() {
@@ -505,7 +530,8 @@ fn handle_request(
             } else {
                 (commands.spawn_empty().id(), false)
             };
-            let (tx, rx) = crossbeam_channel::bounded(1);
+
+            let tx = get_channel(&mut commands, q_tasks, entity);
 
             thread_pool
                 .spawn(async move {
@@ -518,19 +544,20 @@ fn handle_request(
                                 world
                                     .get_resource_mut::<Events<HttpResponse>>()
                                     .unwrap()
-                                    .send(HttpResponse(res));
+                                    .send(HttpResponse(res.clone()));
+                                world.trigger_targets(HttpResponse(res), entity);
                             }
                             Err(e) => {
                                 world
                                     .get_resource_mut::<Events<HttpResponseError>>()
                                     .unwrap()
                                     .send(HttpResponseError::new(e.to_string()));
+                                world
+                                    .trigger_targets(HttpResponseError::new(e.to_string()), entity);
                             }
                         }
 
-                        if has_from_entity {
-                            world.entity_mut(entity).remove::<RequestTask>();
-                        } else {
+                        if !has_from_entity {
                             world.entity_mut(entity).despawn();
                         }
                     });
@@ -539,9 +566,27 @@ fn handle_request(
                 })
                 .detach();
 
-            commands.entity(entity).insert(RequestTask(rx));
             req_res.current_clients += 1;
         }
+    }
+}
+
+fn get_channel(
+    commands: &mut Commands,
+    q_tasks: Query<&RequestTask>,
+    entity: Entity,
+) -> Sender<CommandQueue> {
+    if let Ok(task) = q_tasks.get(entity) {
+        task.tx.clone()
+    } else {
+        let (tx, rx) = crossbeam_channel::bounded(5);
+
+        commands.entity(entity).insert(RequestTask {
+            tx: tx.clone(),
+            rx: rx.clone(),
+        });
+
+        tx
     }
 }
 
@@ -551,7 +596,7 @@ fn handle_tasks(
     mut request_tasks: Query<&RequestTask>,
 ) {
     for task in request_tasks.iter_mut() {
-        if let Ok(mut command_queue) = task.0.try_recv() {
+        if let Ok(mut command_queue) = task.rx.try_recv() {
             commands.append(&mut command_queue);
             req_res.current_clients -= 1;
         }

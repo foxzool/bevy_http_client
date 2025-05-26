@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.1]
+
+- add component observe 
+
 ## [0.8.0]
 
 - bump bevy version to 0.16.0
