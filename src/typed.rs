@@ -122,6 +122,11 @@ impl<T: for<'a> serde::Deserialize<'a>> TypedResponse<T> {
     pub fn into_inner(self) -> T {
         self.inner
     }
+
+    /// Access inner value T from a TypedResponse reference 
+    pub fn inner(&self) -> &T {
+        &self.inner
+    }
 }
 
 #[derive(Event, Debug, Clone, Deref)]
