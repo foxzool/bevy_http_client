@@ -123,7 +123,7 @@ impl<T: for<'a> serde::Deserialize<'a>> TypedResponse<T> {
         self.inner
     }
 
-    /// Access inner value T from a TypedResponse reference 
+    /// Access inner value T from a TypedResponse reference
     pub fn inner(&self) -> &T {
         &self.inner
     }
