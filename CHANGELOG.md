@@ -1,5 +1,9 @@
 # Changelog
 
+## [0.8.2] - 2025-06-03
+
+* access inner value T from a TypedResponse reference [#11](https://github.com/foxzool/bevy_http_client/pull/11)
+
 ## [0.8.1]
 
 - add component observe 
