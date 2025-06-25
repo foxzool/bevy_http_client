@@ -82,7 +82,7 @@ impl std::error::Error for HttpClientBuilderError {}
 /// use bevy_http_client::prelude::*;
 ///
 /// let mut app = App::new();
-/// app.add_plugins(DefaultPlugins)
+/// app.add_plugins(MinimalPlugins)
 ///    .add_plugins(HttpClientPlugin);
 /// // Note: Don't call .run() in doctests as it starts the event loop
 /// ```
