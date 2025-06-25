@@ -14,22 +14,24 @@ keywords = ["bevy", "http", "plugin", "wasm"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy_app = "0.16.0"
-bevy_derive = "0.16.0"
+bevy_app = "0.16"
+bevy_derive = "0.16"
 #bevy_hierarchy = "0.16.0"
-bevy_ecs = { version = "0.16.0", features = ["multi_threaded"] }
-bevy_tasks = "0.16.0"
+bevy_ecs = { version = "0.16", features = ["multi_threaded"] }
+bevy_tasks = "0.16"
+bevy_log = "0.16"
 
 crossbeam-channel = "0.5.11"
 ehttp = { version = "0.5.0", features = ["native-async", "json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 
+
 [lib]
 doctest = false
 
 [dev-dependencies]
-bevy = { version = "0.16.0", default-features = false, features = [
+bevy = { version = "0.16", default-features = false, features = [
     "animation",
     "bevy_asset",
     "bevy_gilrs",

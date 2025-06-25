@@ -183,23 +183,25 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                 match result {
                                     // deserialize success, send response
                                     Ok(inner) => {
-                                        world
-                                            .get_resource_mut::<Events<TypedResponse<T>>>()
-                                            .unwrap()
-                                            .send(TypedResponse {
+                                        if let Some(mut events) = world.get_resource_mut::<Events<TypedResponse<T>>>() {
+                                            events.send(TypedResponse {
                                                 inner: inner.clone(),
                                             });
+                                        } else {
+                                            bevy_log::error!("TypedResponse events resource not found");
+                                        }
                                         world.trigger_targets(TypedResponse { inner }, entity);
                                     }
                                     // deserialize error, send error + response
                                     Err(e) => {
-                                        world
-                                            .get_resource_mut::<Events<TypedResponseError<T>>>()
-                                            .unwrap()
-                                            .send(
+                                        if let Some(mut events) = world.get_resource_mut::<Events<TypedResponseError<T>>>() {
+                                            events.send(
                                                 TypedResponseError::new(e.to_string())
                                                     .response(response.clone()),
                                             );
+                                        } else {
+                                            bevy_log::error!("TypedResponseError events resource not found");
+                                        }
 
                                         world.trigger_targets(
                                             TypedResponseError::<T>::new(e.to_string())
@@ -210,10 +212,11 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                 }
                             }
                             Err(e) => {
-                                world
-                                    .get_resource_mut::<Events<TypedResponseError<T>>>()
-                                    .unwrap()
-                                    .send(TypedResponseError::new(e.to_string()));
+                                if let Some(mut events) = world.get_resource_mut::<Events<TypedResponseError<T>>>() {
+                                    events.send(TypedResponseError::new(e.to_string()));
+                                } else {
+                                    bevy_log::error!("TypedResponseError events resource not found");
+                                }
                             }
                         }
 
@@ -222,7 +225,9 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                         }
                     });
 
-                    tx.send(command_queue).unwrap()
+                    if let Err(e) = tx.send(command_queue) {
+                        bevy_log::error!("Failed to send command queue: {}", e);
+                    }
                 })
                 .detach();
 

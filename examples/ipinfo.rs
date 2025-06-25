@@ -14,8 +14,14 @@ fn main() {
 }
 
 fn send_request(mut ev_request: EventWriter<HttpRequest>) {
-    let request = HttpClient::new().get("https://api.ipify.org").build();
-    ev_request.write(request);
+    match HttpClient::new().get("https://api.ipify.org").try_build() {
+        Ok(request) => {
+            ev_request.write(request);
+        }
+        Err(e) => {
+            eprintln!("Failed to build request: {}", e);
+        }
+    }
 }
 
 fn handle_response(mut ev_resp: EventReader<HttpResponse>) {

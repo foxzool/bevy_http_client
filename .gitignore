@@ -2,6 +2,7 @@
 /Cargo.lock
 /.idea
 /.vscode
+reports
 
 dist/httpclient.js
 dist/httpclient_bg.wasm

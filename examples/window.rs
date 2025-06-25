@@ -93,8 +93,17 @@ fn send_request(
         ip.0 = "".to_string();
     }
 
-    let request = HttpClient::new().get("https://api.ipify.org").build();
-    ev_request.write(request);
+    match HttpClient::new().get("https://api.ipify.org").try_build() {
+        Ok(request) => {
+            ev_request.write(request);
+        }
+        Err(e) => {
+            eprintln!("Failed to build request: {}", e);
+            if let Ok(mut text) = status_query.single_mut() {
+                text.0 = "Build Error".to_string();
+            }
+        }
+    }
 }
 
 fn handle_response(

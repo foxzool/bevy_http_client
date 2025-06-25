@@ -12,6 +12,61 @@ use crate::prelude::TypedRequest;
 pub mod prelude;
 mod typed;
 
+/// JSON serialization fallback strategy when serialization fails
+#[derive(Debug, Clone, Default)]
+pub enum JsonFallback {
+    /// Use empty object {} as fallback
+    #[default]
+    EmptyObject,
+    /// Use empty array [] as fallback  
+    EmptyArray,
+    /// Use null as fallback
+    Null,
+    /// Use custom data as fallback
+    Custom(Vec<u8>),
+}
+
+/// JSON serialization error type
+#[derive(Debug, Clone)]
+pub enum JsonSerializationError {
+    SerializationFailed {
+        message: String,
+        fallback_used: JsonFallback,
+    },
+}
+
+impl std::fmt::Display for JsonSerializationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            JsonSerializationError::SerializationFailed { message, fallback_used } => {
+                write!(f, "JSON serialization failed: {}, fallback: {:?}", message, fallback_used)
+            }
+        }
+    }
+}
+
+impl std::error::Error for JsonSerializationError {}
+
+/// HTTP client builder error type
+#[derive(Debug, Clone)]
+pub enum HttpClientBuilderError {
+    MissingMethod,
+    MissingUrl,
+    MissingHeaders,
+}
+
+impl std::fmt::Display for HttpClientBuilderError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            HttpClientBuilderError::MissingMethod => write!(f, "HTTP method is required"),
+            HttpClientBuilderError::MissingUrl => write!(f, "URL is required"),
+            HttpClientBuilderError::MissingHeaders => write!(f, "Headers are required"),
+        }
+    }
+}
+
+impl std::error::Error for HttpClientBuilderError {}
+
 /// Plugin that provides support for send http request and handle response.
 ///
 /// # Example
@@ -305,29 +360,26 @@ impl HttpClient {
         self
     }
 
-    /// This method is used to set the body of the HTTP request as a JSON payload.
-    /// It also sets the "Content-Type" header of the request to "application/json".
-    ///
+    /// Safe JSON serialization method with fallback strategy
+    /// 
+    /// This method safely serializes the body to JSON and sets the Content-Type header.
+    /// If serialization fails, it uses a fallback strategy instead of panicking.
+    /// 
     /// # Arguments
-    ///
-    /// * `body` - A reference to any type that implements the `serde::Serialize` trait. This is the
-    ///   data that will be serialized to JSON and set as the body of the HTTP request.
-    ///
+    /// * `body` - Data to serialize to JSON
+    /// * `fallback` - Fallback strategy when serialization fails
+    /// 
     /// # Returns
-    ///
-    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining.
-    ///
-    /// # Panics
-    ///
-    /// * This method will panic if the serialization of the `body` to JSON fails.
-    ///
+    /// Returns HttpClient instance for method chaining
+    /// 
     /// # Examples
-    ///
     /// ```
-    /// let http_client = HttpClient::new().post("http://example.com")
-    ///     .json(&data);
+    /// let client = HttpClient::new()
+    ///     .post("http://example.com")
+    ///     .json_with_fallback(&data, JsonFallback::EmptyObject);
     /// ```
-    pub fn json(mut self, body: &impl serde::Serialize) -> Self {
+    pub fn json_with_fallback(mut self, body: &impl serde::Serialize, fallback: JsonFallback) -> Self {
+        // Set Content-Type header
         if let Some(headers) = self.headers.as_mut() {
             headers.insert("Content-Type".to_string(), "application/json".to_string());
         } else {
@@ -337,8 +389,96 @@ impl HttpClient {
             ]));
         }
 
-        self.body = serde_json::to_vec(body).unwrap();
+        // Safe serialization with fallback strategy
+        self.body = match serde_json::to_vec(body) {
+            Ok(bytes) => {
+                // Check for unreasonably large payloads
+                if bytes.len() > 50 * 1024 * 1024 { // 50MB limit
+                    bevy_log::warn!("JSON payload is very large ({} bytes), this might cause performance issues", bytes.len());
+                }
+                bytes
+            },
+            Err(e) => {
+                // Get fallback data
+                let fallback_data = match &fallback {
+                    JsonFallback::EmptyObject => b"{}".to_vec(),
+                    JsonFallback::EmptyArray => b"[]".to_vec(),
+                    JsonFallback::Null => b"null".to_vec(),
+                    JsonFallback::Custom(data) => data.clone(),
+                };
+
+                // Log error using bevy's logging system
+                bevy_log::error!(
+                    "JSON serialization failed: {}. Using fallback: {:?}", 
+                    e, 
+                    fallback
+                );
+
+                fallback_data
+            }
+        };
+        
         self
+    }
+
+    /// Result-returning safe JSON serialization method
+    /// 
+    /// # Arguments
+    /// * `body` - Data to serialize to JSON
+    /// 
+    /// # Returns
+    /// * `Ok(HttpClient)` - Serialization successful
+    /// * `Err(JsonSerializationError)` - Serialization failed
+    /// 
+    /// # Examples
+    /// ```
+    /// match HttpClient::new().post("http://example.com").json_safe(&data) {
+    ///     Ok(client) => { /* use client */ },
+    ///     Err(e) => { /* handle error */ },
+    /// }
+    /// ```
+    pub fn json_safe(mut self, body: &impl serde::Serialize) -> Result<Self, JsonSerializationError> {
+        // Set Content-Type header
+        if let Some(headers) = self.headers.as_mut() {
+            headers.insert("Content-Type".to_string(), "application/json".to_string());
+        } else {
+            self.headers = Some(Headers::new(&[
+                ("Content-Type", "application/json"),
+                ("Accept", "*/*"),
+            ]));
+        }
+
+        // Try serialization
+        self.body = serde_json::to_vec(body).map_err(|e| {
+            JsonSerializationError::SerializationFailed {
+                message: e.to_string(),
+                fallback_used: JsonFallback::EmptyObject, // Record intended fallback
+            }
+        })?;
+        
+        Ok(self)
+    }
+
+    /// Improved json method with safe fallback - maintains backward compatibility
+    /// 
+    /// This method will automatically use empty object {} as fallback when serialization fails,
+    /// instead of panicking. This maintains backward compatibility while providing better error handling.
+    /// 
+    /// # Arguments
+    /// * `body` - Data to serialize to JSON
+    /// 
+    /// # Returns
+    /// Returns HttpClient instance for method chaining
+    /// 
+    /// # Examples
+    /// ```
+    /// let client = HttpClient::new()
+    ///     .post("http://example.com")
+    ///     .json(&my_data);  // Now safe, won't panic
+    /// ```
+    pub fn json(self, body: &impl serde::Serialize) -> Self {
+        // Use default fallback strategy (empty object)
+        self.json_with_fallback(body, JsonFallback::default())
     }
 
     /// This method is used to set the properties of the `HttpClient` instance using an `Request`
@@ -463,6 +603,7 @@ impl HttpClient {
     ///
     /// This method consumes the `HttpClient` instance, meaning it can only be called once per
     /// instance.
+    #[deprecated(since = "0.8.3", note = "Use `try_build()` instead for better error handling")]
     pub fn build(self) -> HttpRequest {
         HttpRequest {
             from_entity: self.from_entity,
@@ -477,6 +618,49 @@ impl HttpClient {
         }
     }
 
+    /// Safe version of build() that returns a Result instead of panicking
+    /// 
+    /// This method safely builds an `HttpRequest` from the `HttpClient` instance.
+    /// Returns an error if required fields (method, url, headers) are missing.
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(HttpRequest)` - Successfully built HTTP request
+    /// * `Err(HttpClientBuilderError)` - Missing required fields
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let result = HttpClient::new().post("http://example.com")
+    ///     .headers(&[("Content-Type", "application/json")])
+    ///     .try_build();
+    /// 
+    /// match result {
+    ///     Ok(request) => { /* use request */ },
+    ///     Err(e) => eprintln!("Build failed: {}", e),
+    /// }
+    /// ```
+    pub fn try_build(self) -> Result<HttpRequest, HttpClientBuilderError> {
+        let method = self.method.ok_or(HttpClientBuilderError::MissingMethod)?;
+        let url = self.url
+            .filter(|u| !u.trim().is_empty())
+            .ok_or(HttpClientBuilderError::MissingUrl)?;
+        let headers = self.headers.ok_or(HttpClientBuilderError::MissingHeaders)?;
+
+        Ok(HttpRequest {
+            from_entity: self.from_entity,
+            request: Request {
+                method,
+                url,
+                body: self.body,
+                headers,
+                #[cfg(target_arch = "wasm32")]
+                mode: self.mode,
+            },
+        })
+    }
+
+    #[deprecated(since = "0.8.3", note = "Use `try_with_type()` instead for better error handling")]
     pub fn with_type<T: for<'a> serde::Deserialize<'a>>(self) -> TypedRequest<T> {
         TypedRequest::new(
             Request {
@@ -489,6 +673,51 @@ impl HttpClient {
             },
             self.from_entity,
         )
+    }
+
+    /// Safe version of with_type() that returns a Result instead of panicking
+    /// 
+    /// This method safely creates a typed request from the `HttpClient` instance.
+    /// Returns an error if required fields (method, url, headers) are missing.
+    /// 
+    /// # Type Parameters
+    /// 
+    /// * `T` - The expected response type that implements Deserialize
+    /// 
+    /// # Returns
+    /// 
+    /// * `Ok(TypedRequest<T>)` - Successfully built typed request
+    /// * `Err(HttpClientBuilderError)` - Missing required fields
+    /// 
+    /// # Examples
+    /// 
+    /// ```
+    /// let result = HttpClient::new().get("https://api.example.com")
+    ///     .try_with_type::<MyResponseType>();
+    /// 
+    /// match result {
+    ///     Ok(request) => { /* use typed request */ },
+    ///     Err(e) => eprintln!("Build failed: {}", e),
+    /// }
+    /// ```
+    pub fn try_with_type<T: for<'a> serde::Deserialize<'a>>(self) -> Result<TypedRequest<T>, HttpClientBuilderError> {
+        let method = self.method.ok_or(HttpClientBuilderError::MissingMethod)?;
+        let url = self.url
+            .filter(|u| !u.trim().is_empty())
+            .ok_or(HttpClientBuilderError::MissingUrl)?;
+        let headers = self.headers.ok_or(HttpClientBuilderError::MissingHeaders)?;
+
+        Ok(TypedRequest::new(
+            Request {
+                method,
+                url,
+                body: self.body,
+                headers,
+                #[cfg(target_arch = "wasm32")]
+                mode: self.mode,
+            },
+            self.from_entity,
+        ))
     }
 }
 
@@ -541,19 +770,20 @@ fn handle_request(
                     command_queue.push(move |world: &mut World| {
                         match response {
                             Ok(res) => {
-                                world
-                                    .get_resource_mut::<Events<HttpResponse>>()
-                                    .unwrap()
-                                    .send(HttpResponse(res.clone()));
+                                if let Some(mut events) = world.get_resource_mut::<Events<HttpResponse>>() {
+                                    events.send(HttpResponse(res.clone()));
+                                } else {
+                                    bevy_log::error!("HttpResponse events resource not found");
+                                }
                                 world.trigger_targets(HttpResponse(res), entity);
                             }
                             Err(e) => {
-                                world
-                                    .get_resource_mut::<Events<HttpResponseError>>()
-                                    .unwrap()
-                                    .send(HttpResponseError::new(e.to_string()));
-                                world
-                                    .trigger_targets(HttpResponseError::new(e.to_string()), entity);
+                                if let Some(mut events) = world.get_resource_mut::<Events<HttpResponseError>>() {
+                                    events.send(HttpResponseError::new(e.to_string()));
+                                } else {
+                                    bevy_log::error!("HttpResponseError events resource not found");
+                                }
+                                world.trigger_targets(HttpResponseError::new(e.to_string()), entity);
                             }
                         }
 
@@ -562,7 +792,9 @@ fn handle_request(
                         }
                     });
 
-                    tx.send(command_queue).unwrap();
+                    if let Err(e) = tx.send(command_queue) {
+                        bevy_log::error!("Failed to send command queue: {}", e);
+                    }
                 })
                 .detach();
 

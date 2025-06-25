@@ -30,10 +30,16 @@ fn send_request(
     clients: Query<&HttpClient, With<IpRequestMarker>>,
     mut ev_request: EventWriter<HttpRequest>,
 ) {
-    let requests = clients
+    let requests: Vec<HttpRequest> = clients
         .iter()
-        .map(|c| c.clone().build())
-        .collect::<Vec<_>>();
+        .filter_map(|c| match c.clone().try_build() {
+            Ok(request) => Some(request),
+            Err(e) => {
+                eprintln!("Failed to build request: {}", e);
+                None
+            }
+        })
+        .collect();
 
     ev_request.write_batch(requests);
 }

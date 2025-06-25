@@ -20,11 +20,17 @@ fn main() {
 }
 
 fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
-    ev_request.write(
-        HttpClient::new()
-            .get("https://api.ipify.org?format=json")
-            .with_type::<IpInfo>(),
-    );
+    match HttpClient::new()
+        .get("https://api.ipify.org?format=json")
+        .try_with_type::<IpInfo>()
+    {
+        Ok(request) => {
+            ev_request.write(request);
+        }
+        Err(e) => {
+            eprintln!("Failed to build typed request: {}", e);
+        }
+    }
 }
 
 /// consume TypedResponse<IpInfo> events
