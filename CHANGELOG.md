@@ -1,5 +1,46 @@
 # Changelog
 
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.8.3] - 2025-06-25
+
+### Added
+- Safe HTTP client builder methods (`try_build()`, `try_with_type()`) for better error handling
+- New error types: `HttpClientBuilderError` and `JsonSerializationError`
+- JSON serialization with fallback strategies (`json_with_fallback()`, `json_safe()`)
+- Comprehensive GitHub Actions CI/CD pipeline
+  - Automated testing including doctests, examples, and WASM compilation
+  - Automatic GitHub Pages deployment with live WASM demo
+  - Automated releases to GitHub and crates.io on tag creation
+- Complete documentation test coverage (all doctests now pass)
+- Enhanced error logging using `bevy_log` throughout the codebase
+
+### Changed
+- Made `bevy_log` a direct dependency (no longer optional feature)
+- Improved error handling in async HTTP request processing
+- Enhanced JSON serialization with safe fallback mechanisms
+- Updated all examples to use new safe builder methods
+- Modernized GitHub Actions workflows with latest action versions
+
+### Deprecated
+- `build()` method - use `try_build()` instead for better error handling
+- `with_type()` method - use `try_with_type()` instead for better error handling
+
+### Fixed
+- Removed all `unwrap()` calls that could cause runtime panics
+- Fixed all failing documentation tests (22 doctests now pass)
+- Improved error handling in typed request processing
+- Fixed clippy warnings about derivable Default implementations
+- Enhanced WASM compatibility and optimization
+
+### Security
+- Eliminated potential panic points in async request handling
+- Added payload size warnings for large JSON requests (>50MB)
+- Improved error propagation and logging for better debugging
+
 ## [0.8.2] - 2025-06-03
 
 * access inner value T from a TypedResponse reference [#11](https://github.com/foxzool/bevy_http_client/pull/11)

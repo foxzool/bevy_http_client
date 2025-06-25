@@ -33,11 +33,12 @@ fn main() {
 }
 
 fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
-    ev_request.send(
-        HttpClient::new()
-            .get("https://api.ipify.org?format=json")
-            .with_type::<IpInfo>(),
-    );
+    if let Ok(request) = HttpClient::new()
+        .get("https://api.ipify.org?format=json")
+        .try_with_type::<IpInfo>()
+    {
+        ev_request.send(request);
+    }
 }
 
 /// consume TypedResponse<IpInfo> events
@@ -60,7 +61,7 @@ fn handle_error(mut ev_error: EventReader<TypedResponseError<IpInfo>>) {
 
 | bevy | bevy_http_client |
 |------|------------------|
-| 0.16 | 0.8              |
+| 0.16 | 0.8.3            |
 | 0.15 | 0.7              |
 | 0.14 | 0.6              |
 | 0.13 | 0.4, 0,5         |
