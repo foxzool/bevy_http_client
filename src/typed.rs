@@ -6,7 +6,7 @@ use ehttp::{Request, Response};
 use serde::Deserialize;
 use std::marker::PhantomData;
 
-use crate::{HttpClientSetting, RequestTask, get_channel};
+use crate::{get_channel, HttpClientSetting, RequestTask};
 
 pub trait HttpTypedRequestTrait {
     /// Registers a new request type `T` to the application.
