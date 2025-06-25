@@ -2,21 +2,21 @@ name: CI
 
 on:
   push:
-    branches: [main,master]
+    branches: [main, master]
   pull_request:
-    branches: [main,master]
+    branches: [main, master]
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  # Run cargo test
+  # Run cargo test (including doctests)
   test:
     name: Test Suite
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -28,17 +28,13 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-test-${{ hashFiles('**/Cargo.toml') }}
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+        uses: dtolnay/rust-toolchain@stable
       - name: Install Dependencies
         run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - name: Run cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
+        run: cargo test --verbose
+      - name: Run cargo test --doc
+        run: cargo test --doc --verbose
 
   # Run cargo clippy -- -D warnings
   clippy_check:
@@ -46,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Cache
         uses: actions/cache@v4
         with:
@@ -58,19 +54,13 @@ jobs:
             target/
           key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.toml') }}
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          profile: minimal
           components: clippy
-          override: true
       - name: Install Dependencies
-        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev
+        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
       - name: Run clippy
-        uses: actions-rs/clippy-check@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          args: -- -D warnings
+        run: cargo clippy -- -D warnings
 
   # Run cargo fmt --all -- --check
   format:
@@ -78,16 +68,53 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout sources
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          profile: minimal
           components: rustfmt
-          override: true
       - name: Run cargo fmt
-        uses: actions-rs/cargo@v1
+        run: cargo fmt --all -- --check
+
+  # Build examples
+  examples:
+    name: Build Examples
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Cache
+        uses: actions/cache@v4
         with:
-          command: fmt
-          args: --all -- --check
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-examples-${{ hashFiles('**/Cargo.toml') }}
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Dependencies
+        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Build all examples
+        run: |
+          cargo build --examples --verbose
+      - name: Test examples compilation for WASM
+        run: |
+          rustup target add wasm32-unknown-unknown
+          cargo build --example window --target wasm32-unknown-unknown
+
+  # Build docs
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Dependencies
+        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+      - name: Build documentation
+        run: cargo doc --no-deps --document-private-items

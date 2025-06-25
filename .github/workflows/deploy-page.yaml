@@ -1,46 +1,122 @@
-name: deploy-github-page
+name: Deploy GitHub Pages
 
 on:
+  # Automatic deployment after CI passes on main/master
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches: [main, master]
+  # Manual deployment
   workflow_dispatch:
 
 permissions:
   contents: write
+  pages: write
+  id-token: write
+
+# Allow only one concurrent deployment
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
 
 jobs:
-  build-web:
+  build-and-deploy:
     runs-on: ubuntu-latest
-
+    # Only run if CI workflow succeeded (for automatic runs) or always for manual runs
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        
       - name: Install rust toolchain
-        uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
+        
       - name: Install Dependencies
-        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev
-      #      - name: Install trunk
-      #        uses: jetli/trunk-action@v0.4.0
-      #        with:
-      #          version: 'latest'
-      - name: Install wasm-bindgen
-        run: |
-          cargo install wasm-bindgen-cli
+        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        
+      - name: Install wasm-bindgen-cli
+        uses: taiki-e/install-action@wasm-bindgen-cli
+        
       - name: Add wasm target
-        run: |
-          rustup target add wasm32-unknown-unknown
+        run: rustup target add wasm32-unknown-unknown
+        
       - name: Build Example
+        run: cargo build --release --target wasm32-unknown-unknown --example window
+        
+      - name: Generate wasm bindings
         run: |
-          cargo build --release --target wasm32-unknown-unknown --example window
-      - name: Wasm bindgen
-        run: |
-          wasm-bindgen --no-typescript --target web  --out-dir ./dist/   --out-name "httpclient"    ./target/wasm32-unknown-unknown/release/examples/window.wasm
-      - name: optimize Wasm
+          mkdir -p dist
+          wasm-bindgen --no-typescript --target web \
+            --out-dir ./dist/ \
+            --out-name "httpclient" \
+            ./target/wasm32-unknown-unknown/release/examples/window.wasm
+            
+      - name: Optimize WASM
         uses: NiklasEi/wasm-opt-action@v2
         with:
           file: dist/*.wasm
-      - name: Deploy to GitHub Pages
-        uses: JamesIves/github-pages-deploy-action@v4.2.5
+          
+      - name: Create index.html
+        run: |
+          cat > dist/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Bevy HTTP Client Demo</title>
+              <style>
+                  body {
+                      margin: 0;
+                      padding: 20px;
+                      font-family: Arial, sans-serif;
+                      background: #2b2b2b;
+                      color: white;
+                      display: flex;
+                      flex-direction: column;
+                      align-items: center;
+                  }
+                  h1 { color: #ff6b35; }
+                  #bevy { border: 2px solid #ff6b35; }
+                  .info { 
+                      max-width: 600px; 
+                      text-align: center; 
+                      margin-bottom: 20px;
+                      line-height: 1.6;
+                  }
+                  a { color: #ff6b35; }
+              </style>
+          </head>
+          <body>
+              <h1>🦀 Bevy HTTP Client Demo</h1>
+              <div class="info">
+                  <p>This is a live demo of <strong>bevy_http_client</strong> running in WebAssembly.</p>
+                  <p>The demo makes HTTP requests to retrieve your IP address every 2 seconds.</p>
+                  <p>
+                      <a href="https://github.com/foxzool/bevy_http_client" target="_blank">📚 View on GitHub</a> |
+                      <a href="https://docs.rs/bevy_http_client" target="_blank">📖 Documentation</a> |
+                      <a href="https://crates.io/crates/bevy_http_client" target="_blank">📦 Crates.io</a>
+                  </p>
+              </div>
+              <canvas id="bevy" width="800" height="600"></canvas>
+              <script type="module">
+                  import init from './httpclient.js';
+                  init();
+              </script>
+          </body>
+          </html>
+          EOF
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
         with:
-          branch: gh-pages
-          folder: dist
+          path: dist
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

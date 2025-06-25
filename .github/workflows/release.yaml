@@ -1,0 +1,209 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Manual release trigger
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g., v0.8.3)'
+        required: true
+        type: string
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # Create GitHub Release
+  github-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      tag_name: ${{ steps.get_tag.outputs.tag_name }}
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get tag name
+        id: get_tag
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "tag_name=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get changelog
+        id: changelog
+        run: |
+          # Extract version from tag (remove 'v' prefix)
+          VERSION="${{ steps.get_tag.outputs.tag_name }}"
+          VERSION_NUM=${VERSION#v}
+          
+          # Generate changelog from git commits since last tag
+          LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$LAST_TAG" ]; then
+            CHANGELOG=$(git log --pretty=format:"- %s" $LAST_TAG..HEAD)
+          else
+            CHANGELOG=$(git log --pretty=format:"- %s" HEAD)
+          fi
+          
+          # Create release notes
+          cat > release_notes.md << EOF
+          ## 🚀 What's New in $VERSION
+          
+          $CHANGELOG
+          
+          ## 📦 Installation
+          
+          Add to your \`Cargo.toml\`:
+          \`\`\`toml
+          [dependencies]
+          bevy_http_client = "$VERSION_NUM"
+          \`\`\`
+          
+          ## 🔗 Links
+          - [📚 Documentation](https://docs.rs/bevy_http_client/$VERSION_NUM)
+          - [📋 Changelog](https://github.com/foxzool/bevy_http_client/blob/master/CHANGELOG.md)
+          - [🌐 Live Demo](https://foxzool.github.io/bevy_http_client/)
+          EOF
+          
+          echo "Generated release notes:"
+          cat release_notes.md
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag_name }}
+          release_name: Release ${{ steps.get_tag.outputs.tag_name }}
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(steps.get_tag.outputs.tag_name, 'alpha') || contains(steps.get_tag.outputs.tag_name, 'beta') || contains(steps.get_tag.outputs.tag_name, 'rc') }}
+
+  # Publish to crates.io
+  publish-crates:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: github-release
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-publish-${{ hashFiles('**/Cargo.toml') }}
+
+      - name: Install Dependencies
+        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+
+      - name: Verify version matches tag
+        run: |
+          TAG_VERSION="${{ needs.github-release.outputs.tag_name }}"
+          CARGO_VERSION="v$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')"
+          
+          echo "Tag version: $TAG_VERSION"
+          echo "Cargo.toml version: $CARGO_VERSION"
+          
+          if [ "$TAG_VERSION" != "$CARGO_VERSION" ]; then
+            echo "Error: Tag version ($TAG_VERSION) does not match Cargo.toml version ($CARGO_VERSION)"
+            exit 1
+          fi
+
+      - name: Run tests before publishing
+        run: |
+          cargo test --verbose
+          cargo test --doc --verbose
+
+      - name: Check package
+        run: cargo package --verbose
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          echo "Publishing bevy_http_client to crates.io..."
+          cargo publish --verbose
+
+      - name: Verify publication
+        run: |
+          echo "Waiting for package to be available on crates.io..."
+          sleep 30
+          
+          VERSION="${{ needs.github-release.outputs.tag_name }}"
+          VERSION_NUM=${VERSION#v}
+          
+          # Check if the version is available on crates.io
+          for i in {1..10}; do
+            if curl -f "https://crates.io/api/v1/crates/bevy_http_client/$VERSION_NUM" > /dev/null 2>&1; then
+              echo "✅ Package successfully published to crates.io!"
+              break
+            else
+              echo "⏳ Waiting for package to be indexed... (attempt $i/10)"
+              sleep 30
+            fi
+          done
+
+  # Update documentation
+  update-docs:
+    name: Update Documentation
+    runs-on: ubuntu-latest
+    needs: [github-release, publish-crates]
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Update README badges
+        run: |
+          VERSION="${{ needs.github-release.outputs.tag_name }}"
+          VERSION_NUM=${VERSION#v}
+          
+          # Update version in README if needed
+          sed -i "s/bevy_http_client = \"[^\"]*\"/bevy_http_client = \"$VERSION_NUM\"/g" README.md
+
+      - name: Commit documentation updates
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --quiet; then
+            echo "No documentation changes to commit"
+          else
+            git add README.md
+            git commit -m "docs: update version references to ${{ needs.github-release.outputs.tag_name }}"
+            git push
+          fi
+
+  # Trigger documentation deployment
+  trigger-docs-deploy:
+    name: Trigger Documentation Deploy
+    runs-on: ubuntu-latest
+    needs: [github-release, publish-crates]
+    steps:
+      - name: Trigger deploy-page workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'deploy-page.yaml',
+              ref: 'master'
+            });
