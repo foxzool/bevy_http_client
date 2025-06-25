@@ -21,7 +21,6 @@ jobs:
     name: Create GitHub Release
     runs-on: ubuntu-latest
     outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
       tag_name: ${{ steps.get_tag.outputs.tag_name }}
     steps:
       - name: Checkout sources
@@ -78,12 +77,12 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ steps.get_tag.outputs.tag_name }}
-          release_name: Release ${{ steps.get_tag.outputs.tag_name }}
+          name: Release ${{ steps.get_tag.outputs.tag_name }}
           body_path: release_notes.md
           draft: false
           prerelease: ${{ contains(steps.get_tag.outputs.tag_name, 'alpha') || contains(steps.get_tag.outputs.tag_name, 'beta') || contains(steps.get_tag.outputs.tag_name, 'rc') }}
@@ -112,7 +111,7 @@ jobs:
           key: ${{ runner.os }}-cargo-publish-${{ hashFiles('**/Cargo.toml') }}
 
       - name: Install Dependencies
-        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev
+        run: sudo apt-get update; sudo apt-get install pkg-config libx11-dev libasound2-dev libudev-dev libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev jq
 
       - name: Verify version matches tag
         run: |
@@ -139,11 +138,23 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "⚠️ CARGO_REGISTRY_TOKEN not found. Skipping crates.io publication."
+            echo "Please add CARGO_REGISTRY_TOKEN to repository secrets to enable automatic publishing."
+            exit 0
+          fi
           echo "Publishing bevy_http_client to crates.io..."
           cargo publish --verbose
 
       - name: Verify publication
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
         run: |
+          if [ -z "$CARGO_REGISTRY_TOKEN" ]; then
+            echo "🔄 Skipping publication verification (no CARGO_REGISTRY_TOKEN)"
+            exit 0
+          fi
+          
           echo "Waiting for package to be available on crates.io..."
           sleep 30
           
@@ -179,6 +190,8 @@ jobs:
           sed -i "s/bevy_http_client = \"[^\"]*\"/bevy_http_client = \"$VERSION_NUM\"/g" README.md
 
       - name: Commit documentation updates
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"

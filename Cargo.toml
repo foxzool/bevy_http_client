@@ -2,7 +2,7 @@
 name = "bevy_http_client"
 description = "A simple HTTP client for Bevy"
 version = "0.8.3"
-edition = "2024"
+edition = "2021"
 readme = "README.md"
 homepage = "https://crates.io/crates/bevy_http_client"
 documentation = "https://docs.rs/bevy_http_client"
