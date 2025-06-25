@@ -27,6 +27,14 @@ pub trait HttpTypedRequestTrait {
     /// # Examples
     ///
     /// ```
+    /// use bevy::prelude::*;
+    /// use bevy_http_client::prelude::*;
+    /// use serde::Deserialize;
+    ///
+    /// #[derive(Deserialize, Clone)]
+    /// struct MyRequestType { id: u32, name: String }
+    ///
+    /// let mut app = App::new();
     /// app.register_request_type::<MyRequestType>();
     /// ```
     fn register_request_type<T: for<'a> Deserialize<'a> + Send + Sync + 'static + Clone>(
@@ -65,8 +73,20 @@ impl HttpTypedRequestTrait for App {
 /// # Examples
 ///
 /// ```
-/// let request = Request::new();
-/// let typed_request = TypedRequest::new(request);
+/// use bevy_http_client::prelude::*;
+/// use ehttp::{Request, Headers};
+/// use serde::Deserialize;
+///
+/// #[derive(Deserialize)]
+/// struct MyResponseType { id: u32, name: String }
+///
+/// let request = Request {
+///     method: "GET".to_string(),
+///     url: "https://api.example.com".to_string(),
+///     body: vec![],
+///     headers: Headers::new(&[("Accept", "application/json")]),
+/// };
+/// let typed_request = TypedRequest::<MyResponseType>::new(request, None);
 /// ```
 #[derive(Debug, Event)]
 pub struct TypedRequest<T>
@@ -106,7 +126,19 @@ impl<T: for<'a> serde::Deserialize<'a>> TypedRequest<T> {
 /// # Examples
 ///
 /// ```
-/// let response = TypedResponse { inner: MyResponseType };
+/// use bevy_http_client::prelude::*;
+/// use serde::Deserialize;
+///
+/// #[derive(Deserialize)]
+/// struct MyResponseType { id: u32, name: String }
+///
+/// // Note: TypedResponse is typically created internally by the system
+/// // when processing HTTP responses. You would typically use it like this:
+/// # fn example_usage(response: TypedResponse<MyResponseType>) {
+/// let data = response.into_inner(); // Get the deserialized data
+/// let id = data.id;
+/// let name = data.name;
+/// # }
 /// ```
 #[derive(Debug, Deref, Event)]
 pub struct TypedResponse<T>
@@ -183,24 +215,32 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                 match result {
                                     // deserialize success, send response
                                     Ok(inner) => {
-                                        if let Some(mut events) = world.get_resource_mut::<Events<TypedResponse<T>>>() {
+                                        if let Some(mut events) =
+                                            world.get_resource_mut::<Events<TypedResponse<T>>>()
+                                        {
                                             events.send(TypedResponse {
                                                 inner: inner.clone(),
                                             });
                                         } else {
-                                            bevy_log::error!("TypedResponse events resource not found");
+                                            bevy_log::error!(
+                                                "TypedResponse events resource not found"
+                                            );
                                         }
                                         world.trigger_targets(TypedResponse { inner }, entity);
                                     }
                                     // deserialize error, send error + response
                                     Err(e) => {
-                                        if let Some(mut events) = world.get_resource_mut::<Events<TypedResponseError<T>>>() {
+                                        if let Some(mut events) = world
+                                            .get_resource_mut::<Events<TypedResponseError<T>>>()
+                                        {
                                             events.send(
                                                 TypedResponseError::new(e.to_string())
                                                     .response(response.clone()),
                                             );
                                         } else {
-                                            bevy_log::error!("TypedResponseError events resource not found");
+                                            bevy_log::error!(
+                                                "TypedResponseError events resource not found"
+                                            );
                                         }
 
                                         world.trigger_targets(
@@ -212,10 +252,14 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                 }
                             }
                             Err(e) => {
-                                if let Some(mut events) = world.get_resource_mut::<Events<TypedResponseError<T>>>() {
+                                if let Some(mut events) =
+                                    world.get_resource_mut::<Events<TypedResponseError<T>>>()
+                                {
                                     events.send(TypedResponseError::new(e.to_string()));
                                 } else {
-                                    bevy_log::error!("TypedResponseError events resource not found");
+                                    bevy_log::error!(
+                                        "TypedResponseError events resource not found"
+                                    );
                                 }
                             }
                         }

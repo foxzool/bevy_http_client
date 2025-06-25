@@ -10,7 +10,7 @@ A simple HTTP client Bevy Plugin for both native and WASM.
 
 ## Example
 
-```rust
+```rust, no_run
 use bevy::{prelude::*, time::common_conditions::on_timer};
 use bevy_http_client::prelude::*;
 use serde::Deserialize;

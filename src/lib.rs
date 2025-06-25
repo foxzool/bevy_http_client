@@ -38,8 +38,15 @@ pub enum JsonSerializationError {
 impl std::fmt::Display for JsonSerializationError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            JsonSerializationError::SerializationFailed { message, fallback_used } => {
-                write!(f, "JSON serialization failed: {}, fallback: {:?}", message, fallback_used)
+            JsonSerializationError::SerializationFailed {
+                message,
+                fallback_used,
+            } => {
+                write!(
+                    f,
+                    "JSON serialization failed: {}, fallback: {:?}",
+                    message, fallback_used
+                )
             }
         }
     }
@@ -74,9 +81,10 @@ impl std::error::Error for HttpClientBuilderError {}
 /// use bevy::prelude::*;
 /// use bevy_http_client::prelude::*;
 ///
-/// App::new()
-///     .add_plugins(DefaultPlugins)
-///     .add_plugins(HttpClientPlugin).run();
+/// let mut app = App::new();
+/// app.add_plugins(DefaultPlugins)
+///    .add_plugins(HttpClientPlugin);
+/// // Note: Don't call .run() in doctests as it starts the event loop
 /// ```
 #[derive(Default)]
 pub struct HttpClientPlugin;
@@ -179,6 +187,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new();
     /// ```
     pub fn new() -> Self {
@@ -196,8 +205,11 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
-    /// let e = commands.spawn().id();
-    /// let http_client = HttpClient::new_with_entity(e)
+    /// use bevy_http_client::HttpClient;
+    /// use bevy_ecs::entity::Entity;
+    ///
+    /// let entity = Entity::from_raw(42); // Example entity
+    /// let http_client = HttpClient::new_with_entity(entity);
     /// ```
     pub fn new_with_entity(entity: Entity) -> Self {
         Self {
@@ -220,6 +232,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new().get("http://example.com");
     /// ```
     pub fn get(mut self, url: impl ToString) -> Self {
@@ -242,6 +255,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new().post("http://example.com");
     /// ```
     pub fn post(mut self, url: impl ToString) -> Self {
@@ -264,6 +278,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new().put("http://example.com");
     /// ```
     pub fn put(mut self, url: impl ToString) -> Self {
@@ -286,6 +301,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new().patch("http://example.com");
     /// ```
     pub fn patch(mut self, url: impl ToString) -> Self {
@@ -308,6 +324,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new().delete("http://example.com");
     /// ```
     pub fn delete(mut self, url: impl ToString) -> Self {
@@ -330,6 +347,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new().head("http://example.com");
     /// ```
     pub fn head(mut self, url: impl ToString) -> Self {
@@ -352,6 +370,7 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
     /// let http_client = HttpClient::new().post("http://example.com")
     ///     .headers(&[("Content-Type", "application/json"), ("Accept", "*/*")]);
     /// ```
@@ -361,24 +380,35 @@ impl HttpClient {
     }
 
     /// Safe JSON serialization method with fallback strategy
-    /// 
+    ///
     /// This method safely serializes the body to JSON and sets the Content-Type header.
     /// If serialization fails, it uses a fallback strategy instead of panicking.
-    /// 
+    ///
     /// # Arguments
     /// * `body` - Data to serialize to JSON
     /// * `fallback` - Fallback strategy when serialization fails
-    /// 
+    ///
     /// # Returns
     /// Returns HttpClient instance for method chaining
-    /// 
+    ///
     /// # Examples
     /// ```
+    /// use bevy_http_client::{HttpClient, JsonFallback};
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct MyData { name: String }
+    /// let data = MyData { name: "test".to_string() };
+    ///
     /// let client = HttpClient::new()
     ///     .post("http://example.com")
     ///     .json_with_fallback(&data, JsonFallback::EmptyObject);
     /// ```
-    pub fn json_with_fallback(mut self, body: &impl serde::Serialize, fallback: JsonFallback) -> Self {
+    pub fn json_with_fallback(
+        mut self,
+        body: &impl serde::Serialize,
+        fallback: JsonFallback,
+    ) -> Self {
         // Set Content-Type header
         if let Some(headers) = self.headers.as_mut() {
             headers.insert("Content-Type".to_string(), "application/json".to_string());
@@ -393,11 +423,15 @@ impl HttpClient {
         self.body = match serde_json::to_vec(body) {
             Ok(bytes) => {
                 // Check for unreasonably large payloads
-                if bytes.len() > 50 * 1024 * 1024 { // 50MB limit
-                    bevy_log::warn!("JSON payload is very large ({} bytes), this might cause performance issues", bytes.len());
+                if bytes.len() > 50 * 1024 * 1024 {
+                    // 50MB limit
+                    bevy_log::warn!(
+                        "JSON payload is very large ({} bytes), this might cause performance issues",
+                        bytes.len()
+                    );
                 }
                 bytes
-            },
+            }
             Err(e) => {
                 // Get fallback data
                 let fallback_data = match &fallback {
@@ -409,35 +443,45 @@ impl HttpClient {
 
                 // Log error using bevy's logging system
                 bevy_log::error!(
-                    "JSON serialization failed: {}. Using fallback: {:?}", 
-                    e, 
+                    "JSON serialization failed: {}. Using fallback: {:?}",
+                    e,
                     fallback
                 );
 
                 fallback_data
             }
         };
-        
+
         self
     }
 
     /// Result-returning safe JSON serialization method
-    /// 
+    ///
     /// # Arguments
     /// * `body` - Data to serialize to JSON
-    /// 
+    ///
     /// # Returns
     /// * `Ok(HttpClient)` - Serialization successful
     /// * `Err(JsonSerializationError)` - Serialization failed
-    /// 
+    ///
     /// # Examples
     /// ```
+    /// use bevy_http_client::HttpClient;
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct MyData { name: String }
+    /// let data = MyData { name: "test".to_string() };
+    ///
     /// match HttpClient::new().post("http://example.com").json_safe(&data) {
     ///     Ok(client) => { /* use client */ },
     ///     Err(e) => { /* handle error */ },
     /// }
     /// ```
-    pub fn json_safe(mut self, body: &impl serde::Serialize) -> Result<Self, JsonSerializationError> {
+    pub fn json_safe(
+        mut self,
+        body: &impl serde::Serialize,
+    ) -> Result<Self, JsonSerializationError> {
         // Set Content-Type header
         if let Some(headers) = self.headers.as_mut() {
             headers.insert("Content-Type".to_string(), "application/json".to_string());
@@ -455,23 +499,30 @@ impl HttpClient {
                 fallback_used: JsonFallback::EmptyObject, // Record intended fallback
             }
         })?;
-        
+
         Ok(self)
     }
 
     /// Improved json method with safe fallback - maintains backward compatibility
-    /// 
+    ///
     /// This method will automatically use empty object {} as fallback when serialization fails,
     /// instead of panicking. This maintains backward compatibility while providing better error handling.
-    /// 
+    ///
     /// # Arguments
     /// * `body` - Data to serialize to JSON
-    /// 
+    ///
     /// # Returns
     /// Returns HttpClient instance for method chaining
-    /// 
+    ///
     /// # Examples
     /// ```
+    /// use bevy_http_client::HttpClient;
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct MyData { name: String }
+    /// let my_data = MyData { name: "test".to_string() };
+    ///
     /// let client = HttpClient::new()
     ///     .post("http://example.com")
     ///     .json(&my_data);  // Now safe, won't panic
@@ -497,6 +548,9 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
+    /// use ehttp::{Request, Headers};
+    ///
     /// let request = Request {
     ///     method: "POST".to_string(),
     ///     url: "http://example.com".to_string(),
@@ -531,7 +585,10 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
-    /// let entity = commands.spawn().id();
+    /// use bevy_http_client::HttpClient;
+    /// use bevy_ecs::entity::Entity;
+    ///
+    /// let entity = Entity::from_raw(42); // Example entity
     /// let http_client = HttpClient::new().entity(entity);
     /// ```
     pub fn entity(mut self, entity: Entity) -> Self {
@@ -554,6 +611,9 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
+    /// use ehttp::{Request, Headers, Mode};
+    ///
     /// let request = Request {
     ///     method: "POST".to_string(),
     ///     url: "http://example.com".to_string(),
@@ -593,6 +653,13 @@ impl HttpClient {
     /// # Examples
     ///
     /// ```
+    /// use bevy_http_client::HttpClient;
+    /// use serde::Serialize;
+    ///
+    /// #[derive(Serialize)]
+    /// struct MyData { name: String }
+    /// let data = MyData { name: "test".to_string() };
+    ///
     /// let http_request = HttpClient::new().post("http://example.com")
     ///     .headers(&[("Content-Type", "application/json"), ("Accept", "*/*")])
     ///     .json(&data)
@@ -603,7 +670,10 @@ impl HttpClient {
     ///
     /// This method consumes the `HttpClient` instance, meaning it can only be called once per
     /// instance.
-    #[deprecated(since = "0.8.3", note = "Use `try_build()` instead for better error handling")]
+    #[deprecated(
+        since = "0.8.3",
+        note = "Use `try_build()` instead for better error handling"
+    )]
     pub fn build(self) -> HttpRequest {
         HttpRequest {
             from_entity: self.from_entity,
@@ -619,22 +689,24 @@ impl HttpClient {
     }
 
     /// Safe version of build() that returns a Result instead of panicking
-    /// 
+    ///
     /// This method safely builds an `HttpRequest` from the `HttpClient` instance.
     /// Returns an error if required fields (method, url, headers) are missing.
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Ok(HttpRequest)` - Successfully built HTTP request
     /// * `Err(HttpClientBuilderError)` - Missing required fields
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
+    /// use bevy_http_client::HttpClient;
+    ///
     /// let result = HttpClient::new().post("http://example.com")
     ///     .headers(&[("Content-Type", "application/json")])
     ///     .try_build();
-    /// 
+    ///
     /// match result {
     ///     Ok(request) => { /* use request */ },
     ///     Err(e) => eprintln!("Build failed: {}", e),
@@ -642,7 +714,8 @@ impl HttpClient {
     /// ```
     pub fn try_build(self) -> Result<HttpRequest, HttpClientBuilderError> {
         let method = self.method.ok_or(HttpClientBuilderError::MissingMethod)?;
-        let url = self.url
+        let url = self
+            .url
             .filter(|u| !u.trim().is_empty())
             .ok_or(HttpClientBuilderError::MissingUrl)?;
         let headers = self.headers.ok_or(HttpClientBuilderError::MissingHeaders)?;
@@ -660,7 +733,10 @@ impl HttpClient {
         })
     }
 
-    #[deprecated(since = "0.8.3", note = "Use `try_with_type()` instead for better error handling")]
+    #[deprecated(
+        since = "0.8.3",
+        note = "Use `try_with_type()` instead for better error handling"
+    )]
     pub fn with_type<T: for<'a> serde::Deserialize<'a>>(self) -> TypedRequest<T> {
         TypedRequest::new(
             Request {
@@ -676,33 +752,42 @@ impl HttpClient {
     }
 
     /// Safe version of with_type() that returns a Result instead of panicking
-    /// 
+    ///
     /// This method safely creates a typed request from the `HttpClient` instance.
     /// Returns an error if required fields (method, url, headers) are missing.
-    /// 
+    ///
     /// # Type Parameters
-    /// 
+    ///
     /// * `T` - The expected response type that implements Deserialize
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// * `Ok(TypedRequest<T>)` - Successfully built typed request
     /// * `Err(HttpClientBuilderError)` - Missing required fields
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
+    /// use bevy_http_client::HttpClient;
+    /// use serde::Deserialize;
+    ///
+    /// #[derive(Deserialize)]
+    /// struct MyResponseType { id: u32, name: String }
+    ///
     /// let result = HttpClient::new().get("https://api.example.com")
     ///     .try_with_type::<MyResponseType>();
-    /// 
+    ///
     /// match result {
     ///     Ok(request) => { /* use typed request */ },
     ///     Err(e) => eprintln!("Build failed: {}", e),
     /// }
     /// ```
-    pub fn try_with_type<T: for<'a> serde::Deserialize<'a>>(self) -> Result<TypedRequest<T>, HttpClientBuilderError> {
+    pub fn try_with_type<T: for<'a> serde::Deserialize<'a>>(
+        self,
+    ) -> Result<TypedRequest<T>, HttpClientBuilderError> {
         let method = self.method.ok_or(HttpClientBuilderError::MissingMethod)?;
-        let url = self.url
+        let url = self
+            .url
             .filter(|u| !u.trim().is_empty())
             .ok_or(HttpClientBuilderError::MissingUrl)?;
         let headers = self.headers.ok_or(HttpClientBuilderError::MissingHeaders)?;
@@ -770,7 +855,9 @@ fn handle_request(
                     command_queue.push(move |world: &mut World| {
                         match response {
                             Ok(res) => {
-                                if let Some(mut events) = world.get_resource_mut::<Events<HttpResponse>>() {
+                                if let Some(mut events) =
+                                    world.get_resource_mut::<Events<HttpResponse>>()
+                                {
                                     events.send(HttpResponse(res.clone()));
                                 } else {
                                     bevy_log::error!("HttpResponse events resource not found");
@@ -778,12 +865,15 @@ fn handle_request(
                                 world.trigger_targets(HttpResponse(res), entity);
                             }
                             Err(e) => {
-                                if let Some(mut events) = world.get_resource_mut::<Events<HttpResponseError>>() {
+                                if let Some(mut events) =
+                                    world.get_resource_mut::<Events<HttpResponseError>>()
+                                {
                                     events.send(HttpResponseError::new(e.to_string()));
                                 } else {
                                     bevy_log::error!("HttpResponseError events resource not found");
                                 }
-                                world.trigger_targets(HttpResponseError::new(e.to_string()), entity);
+                                world
+                                    .trigger_targets(HttpResponseError::new(e.to_string()), entity);
                             }
                         }
 

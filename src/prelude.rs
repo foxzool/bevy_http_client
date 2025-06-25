@@ -1,5 +1,5 @@
 pub use super::{
-    HttpClient, HttpClientPlugin, HttpClientSetting, HttpRequest, HttpResponse, HttpResponseError,
-    RequestTask, HttpClientBuilderError, JsonSerializationError, JsonFallback,
+    HttpClient, HttpClientBuilderError, HttpClientPlugin, HttpClientSetting, HttpRequest,
+    HttpResponse, HttpResponseError, JsonFallback, JsonSerializationError, RequestTask,
     typed::{HttpTypedRequestTrait, TypedRequest, TypedResponse, TypedResponseError},
 };
