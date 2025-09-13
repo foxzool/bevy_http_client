@@ -874,7 +874,10 @@ fn handle_request(
                                 } else {
                                     bevy_log::error!("HttpResponseError events resource not found");
                                 }
-                                world.trigger(HttpObserved::new(entity, HttpResponseError::new(e.to_string())));
+                                world.trigger(HttpObserved::new(
+                                    entity,
+                                    HttpResponseError::new(e.to_string()),
+                                ));
                             }
                         }
 
