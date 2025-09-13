@@ -28,7 +28,7 @@ fn init_request(mut commands: Commands) {
 
 fn send_request(
     clients: Query<&HttpClient, With<IpRequestMarker>>,
-    mut ev_request: EventWriter<HttpRequest>,
+    mut ev_request: MessageWriter<HttpRequest>,
 ) {
     let requests: Vec<HttpRequest> = clients
         .iter()
@@ -44,10 +44,10 @@ fn send_request(
     ev_request.write_batch(requests);
 }
 
-fn handle_response(response: Trigger<HttpResponse>) {
-    println!("response: {:?}", response.text());
+fn handle_response(response: On<HttpObserved<HttpResponse>>) {
+    println!("response: {:?}", response.event().inner().text());
 }
 
-fn handle_error(error: Trigger<HttpResponseError>) {
-    println!("Error retrieving IP: {}", error.err);
+fn handle_error(error: On<HttpObserved<HttpResponseError>>) {
+    println!("Error retrieving IP: {}", error.event().inner().err);
 }

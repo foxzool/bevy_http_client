@@ -19,7 +19,7 @@ fn main() {
     app.run();
 }
 
-fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
+fn send_request(mut ev_request: MessageWriter<TypedRequest<IpInfo>>) {
     match HttpClient::new()
         .get("https://api.ipify.org?format=json")
         .try_with_type::<IpInfo>()
@@ -34,14 +34,14 @@ fn send_request(mut ev_request: EventWriter<TypedRequest<IpInfo>>) {
 }
 
 /// consume TypedResponse<IpInfo> events
-fn handle_response(mut events: ResMut<Events<TypedResponse<IpInfo>>>) {
+fn handle_response(mut events: ResMut<Messages<TypedResponse<IpInfo>>>) {
     for response in events.drain() {
         let response: IpInfo = response.into_inner();
         println!("ip info: {:?}", response);
     }
 }
 
-fn handle_error(mut ev_error: EventReader<TypedResponseError<IpInfo>>) {
+fn handle_error(mut ev_error: MessageReader<TypedResponseError<IpInfo>>) {
     for error in ev_error.read() {
         println!("Error retrieving IP: {}", error.err);
     }

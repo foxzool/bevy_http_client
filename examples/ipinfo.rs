@@ -13,7 +13,7 @@ fn main() {
         .run();
 }
 
-fn send_request(mut ev_request: EventWriter<HttpRequest>) {
+fn send_request(mut ev_request: MessageWriter<HttpRequest>) {
     match HttpClient::new().get("https://api.ipify.org").try_build() {
         Ok(request) => {
             ev_request.write(request);
@@ -24,13 +24,13 @@ fn send_request(mut ev_request: EventWriter<HttpRequest>) {
     }
 }
 
-fn handle_response(mut ev_resp: EventReader<HttpResponse>) {
+fn handle_response(mut ev_resp: MessageReader<HttpResponse>) {
     for response in ev_resp.read() {
         println!("response: {:?}", response.text());
     }
 }
 
-fn handle_error(mut ev_error: EventReader<HttpResponseError>) {
+fn handle_error(mut ev_error: MessageReader<HttpResponseError>) {
     for error in ev_error.read() {
         println!("Error retrieving IP: {}", error.err);
     }

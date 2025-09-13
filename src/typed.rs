@@ -46,9 +46,9 @@ impl HttpTypedRequestTrait for App {
     fn register_request_type<T: for<'a> Deserialize<'a> + Send + Sync + 'static + Clone>(
         &mut self,
     ) -> &mut Self {
-        self.add_event::<TypedRequest<T>>();
-        self.add_event::<TypedResponse<T>>();
-        self.add_event::<TypedResponseError<T>>();
+        self.add_message::<TypedRequest<T>>();
+        self.add_message::<TypedResponse<T>>();
+        self.add_message::<TypedResponseError<T>>();
         self.add_systems(PreUpdate, handle_typed_request::<T>);
         self
     }
@@ -88,17 +88,17 @@ impl HttpTypedRequestTrait for App {
 /// };
 /// let typed_request = TypedRequest::<MyResponseType>::new(request, None);
 /// ```
-#[derive(Debug, Event)]
+#[derive(Debug, Message, Event)]
 pub struct TypedRequest<T>
 where
-    T: for<'a> Deserialize<'a>,
+    T: for<'a> Deserialize<'a> + 'static + Send + Sync,
 {
     pub from_entity: Option<Entity>,
     pub request: Request,
     inner: PhantomData<T>,
 }
 
-impl<T: for<'a> serde::Deserialize<'a>> TypedRequest<T> {
+impl<T: 'static + Send + Sync + for<'a> serde::Deserialize<'a>> TypedRequest<T> {
     pub fn new(request: Request, from_entity: Option<Entity>) -> Self {
         TypedRequest {
             from_entity,
@@ -140,16 +140,16 @@ impl<T: for<'a> serde::Deserialize<'a>> TypedRequest<T> {
 /// let name = data.name;
 /// # }
 /// ```
-#[derive(Debug, Deref, Event)]
+#[derive(Debug, Deref, Message, Event)]
 pub struct TypedResponse<T>
 where
-    T: for<'a> Deserialize<'a>,
+    T: Send + Sync + 'static + for<'a> Deserialize<'a>,
 {
     #[deref]
     inner: T,
 }
 
-impl<T: for<'a> serde::Deserialize<'a>> TypedResponse<T> {
+impl<T: Send + Sync + for<'a> serde::Deserialize<'a>> TypedResponse<T> {
     /// Consumes the HTTP response and returns the inner data.
     pub fn into_inner(self) -> T {
         self.inner
@@ -161,15 +161,15 @@ impl<T: for<'a> serde::Deserialize<'a>> TypedResponse<T> {
     }
 }
 
-#[derive(Event, Debug, Clone, Deref)]
-pub struct TypedResponseError<T> {
+#[derive(Message, Event, Debug, Clone, Deref)]
+pub struct TypedResponseError<T> where T: Send + Sync + 'static {
     #[deref]
     pub err: String,
     pub response: Option<Response>,
     phantom: PhantomData<T>,
 }
 
-impl<T> TypedResponseError<T> {
+impl<T: Send + Sync + 'static> TypedResponseError<T> {
     pub fn new(err: String) -> Self {
         Self {
             err,
@@ -184,11 +184,34 @@ impl<T> TypedResponseError<T> {
     }
 }
 
+#[derive(Debug, EntityEvent)]
+pub struct HttpObserved<T: Send + Sync + 'static> {
+    pub entity: Entity,
+    pub event: T,
+}
+
+impl <T: Send + Sync + 'static> HttpObserved<T> {
+    pub fn new(entity: Entity, event: T) -> Self {
+        HttpObserved {
+            entity,
+            event,
+        }
+    }
+
+    pub fn inner(&self) -> &T {
+        &self.event
+    }
+
+    pub fn into_inner(self) -> T {
+        self.event
+    }
+}
+
 /// A system that handles typed HTTP requests.
 fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'static>(
     mut commands: Commands,
     mut req_res: ResMut<HttpClientSetting>,
-    mut requests: EventReader<TypedRequest<T>>,
+    mut requests: MessageReader<TypedRequest<T>>,
     q_tasks: Query<&RequestTask>,
 ) {
     let thread_pool = IoTaskPool::get();
@@ -216,9 +239,9 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                     // deserialize success, send response
                                     Ok(inner) => {
                                         if let Some(mut events) =
-                                            world.get_resource_mut::<Events<TypedResponse<T>>>()
+                                            world.get_resource_mut::<Messages<TypedResponse<T>>>()
                                         {
-                                            events.send(TypedResponse {
+                                            events.write(TypedResponse {
                                                 inner: inner.clone(),
                                             });
                                         } else {
@@ -226,14 +249,14 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                                 "TypedResponse events resource not found"
                                             );
                                         }
-                                        world.trigger_targets(TypedResponse { inner }, entity);
+                                        world.trigger(HttpObserved::new(entity, TypedResponse { inner }));
                                     }
                                     // deserialize error, send error + response
                                     Err(e) => {
-                                        if let Some(mut events) = world
-                                            .get_resource_mut::<Events<TypedResponseError<T>>>()
+                                        if let Some(mut messages) = world
+                                            .get_resource_mut::<Messages<TypedResponseError<T>>>()
                                         {
-                                            events.send(
+                                            messages.write(
                                                 TypedResponseError::new(e.to_string())
                                                     .response(response.clone()),
                                             );
@@ -243,19 +266,18 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                             );
                                         }
 
-                                        world.trigger_targets(
+                                        world.trigger(HttpObserved::new(entity,
                                             TypedResponseError::<T>::new(e.to_string())
-                                                .response(response),
-                                            entity,
-                                        );
+                                                .response(response)
+                                        ));
                                     }
                                 }
                             }
                             Err(e) => {
                                 if let Some(mut events) =
-                                    world.get_resource_mut::<Events<TypedResponseError<T>>>()
+                                    world.get_resource_mut::<Messages<TypedResponseError<T>>>()
                                 {
-                                    events.send(TypedResponseError::new(e.to_string()));
+                                    events.write(TypedResponseError::new(e.to_string()));
                                 } else {
                                     bevy_log::error!(
                                         "TypedResponseError events resource not found"

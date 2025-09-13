@@ -82,7 +82,7 @@ fn setup(mut commands: Commands) {
 }
 
 fn send_request(
-    mut ev_request: EventWriter<HttpRequest>,
+    mut ev_request: MessageWriter<HttpRequest>,
     mut status_query: Query<&mut Text, (With<ResponseText>, Without<ResponseIP>)>,
     mut ip_query: Query<&mut Text, (With<ResponseIP>, Without<ResponseText>)>,
 ) {
@@ -107,7 +107,7 @@ fn send_request(
 }
 
 fn handle_response(
-    mut ev_resp: EventReader<HttpResponse>,
+    mut ev_resp: MessageReader<HttpResponse>,
     mut status_query: Query<&mut Text, (With<ResponseText>, Without<ResponseIP>)>,
     mut ip_query: Query<&mut Text, (With<ResponseIP>, Without<ResponseText>)>,
 ) {
@@ -120,7 +120,7 @@ fn handle_response(
         }
     }
 }
-fn handle_error(mut ev_error: EventReader<HttpResponseError>) {
+fn handle_error(mut ev_error: MessageReader<HttpResponseError>) {
     for error in ev_error.read() {
         println!("Error retrieving IP: {}", error.err);
     }

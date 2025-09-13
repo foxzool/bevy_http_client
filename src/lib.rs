@@ -94,9 +94,9 @@ impl Plugin for HttpClientPlugin {
         if !app.world().contains_resource::<HttpClientSetting>() {
             app.init_resource::<HttpClientSetting>();
         }
-        app.add_event::<HttpRequest>();
-        app.add_event::<HttpResponse>();
-        app.add_event::<HttpResponseError>();
+        app.add_message::<HttpRequest>();
+        app.add_message::<HttpResponse>();
+        app.add_message::<HttpResponseError>();
         app.add_systems(Update, (handle_request, handle_tasks));
     }
 }
@@ -135,7 +135,7 @@ impl HttpClientSetting {
     }
 }
 
-#[derive(Event, Debug, Clone)]
+#[derive(Event, Message, Debug, Clone)]
 pub struct HttpRequest {
     pub from_entity: Option<Entity>,
     pub request: Request,
@@ -208,7 +208,7 @@ impl HttpClient {
     /// use bevy_http_client::HttpClient;
     /// use bevy_ecs::entity::Entity;
     ///
-    /// let entity = Entity::from_raw(42); // Example entity
+    /// let entity = Entity::from_raw_u32(42).unwrap(); // Example entity
     /// let http_client = HttpClient::new_with_entity(entity);
     /// ```
     pub fn new_with_entity(entity: Entity) -> Self {
@@ -588,7 +588,7 @@ impl HttpClient {
     /// use bevy_http_client::HttpClient;
     /// use bevy_ecs::entity::Entity;
     ///
-    /// let entity = Entity::from_raw(42); // Example entity
+    /// let entity = Entity::from_raw_u32(42).unwrap(); // Example entity
     /// let http_client = HttpClient::new().entity(entity);
     /// ```
     pub fn entity(mut self, entity: Entity) -> Self {
@@ -737,7 +737,7 @@ impl HttpClient {
         since = "0.8.3",
         note = "Use `try_with_type()` instead for better error handling"
     )]
-    pub fn with_type<T: for<'a> serde::Deserialize<'a>>(self) -> TypedRequest<T> {
+    pub fn with_type<T: Send + Sync + 'static + for<'a> serde::Deserialize<'a>>(self) -> TypedRequest<T> {
         TypedRequest::new(
             Request {
                 method: self.method.expect("method is required"),
@@ -782,7 +782,7 @@ impl HttpClient {
     ///     Err(e) => eprintln!("Build failed: {}", e),
     /// }
     /// ```
-    pub fn try_with_type<T: for<'a> serde::Deserialize<'a>>(
+    pub fn try_with_type<T: Send + Sync + 'static + for<'a> serde::Deserialize<'a>>(
         self,
     ) -> Result<TypedRequest<T>, HttpClientBuilderError> {
         let method = self.method.ok_or(HttpClientBuilderError::MissingMethod)?;
@@ -807,11 +807,11 @@ impl HttpClient {
 }
 
 /// wrap for ehttp response
-#[derive(Event, Debug, Clone, Deref)]
+#[derive(Event, Message, Debug, Clone, Deref)]
 pub struct HttpResponse(pub Response);
 
 /// wrap for ehttp error
-#[derive(Event, Debug, Clone, Deref)]
+#[derive(Event, Message, Debug, Clone, Deref)]
 pub struct HttpResponseError {
     pub err: String,
 }
@@ -832,7 +832,7 @@ pub struct RequestTask {
 fn handle_request(
     mut commands: Commands,
     mut req_res: ResMut<HttpClientSetting>,
-    mut requests: EventReader<HttpRequest>,
+    mut requests: MessageReader<HttpRequest>,
     q_tasks: Query<&RequestTask>,
 ) {
     let thread_pool = IoTaskPool::get();
@@ -856,24 +856,24 @@ fn handle_request(
                         match response {
                             Ok(res) => {
                                 if let Some(mut events) =
-                                    world.get_resource_mut::<Events<HttpResponse>>()
+                                    world.get_resource_mut::<Messages<HttpResponse>>()
                                 {
-                                    events.send(HttpResponse(res.clone()));
+                                    events.write(HttpResponse(res.clone()));
                                 } else {
                                     bevy_log::error!("HttpResponse events resource not found");
                                 }
-                                world.trigger_targets(HttpResponse(res), entity);
+                                world.trigger(HttpResponse(res));
                             }
                             Err(e) => {
                                 if let Some(mut events) =
-                                    world.get_resource_mut::<Events<HttpResponseError>>()
+                                    world.get_resource_mut::<Messages<HttpResponseError>>()
                                 {
-                                    events.send(HttpResponseError::new(e.to_string()));
+                                    events.write(HttpResponseError::new(e.to_string()));
                                 } else {
                                     bevy_log::error!("HttpResponseError events resource not found");
                                 }
                                 world
-                                    .trigger_targets(HttpResponseError::new(e.to_string()), entity);
+                                    .trigger(HttpResponseError::new(e.to_string()));
                             }
                         }
 
