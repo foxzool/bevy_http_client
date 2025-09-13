@@ -162,7 +162,10 @@ impl<T: Send + Sync + for<'a> serde::Deserialize<'a>> TypedResponse<T> {
 }
 
 #[derive(Message, Event, Debug, Clone, Deref)]
-pub struct TypedResponseError<T> where T: Send + Sync + 'static {
+pub struct TypedResponseError<T>
+where
+    T: Send + Sync + 'static,
+{
     #[deref]
     pub err: String,
     pub response: Option<Response>,
@@ -190,12 +193,9 @@ pub struct HttpObserved<T: Send + Sync + 'static> {
     pub event: T,
 }
 
-impl <T: Send + Sync + 'static> HttpObserved<T> {
+impl<T: Send + Sync + 'static> HttpObserved<T> {
     pub fn new(entity: Entity, event: T) -> Self {
-        HttpObserved {
-            entity,
-            event,
-        }
+        HttpObserved { entity, event }
     }
 
     pub fn inner(&self) -> &T {
@@ -249,7 +249,10 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                                 "TypedResponse events resource not found"
                                             );
                                         }
-                                        world.trigger(HttpObserved::new(entity, TypedResponse { inner }));
+                                        world.trigger(HttpObserved::new(
+                                            entity,
+                                            TypedResponse { inner },
+                                        ));
                                     }
                                     // deserialize error, send error + response
                                     Err(e) => {
@@ -266,9 +269,10 @@ fn handle_typed_request<T: for<'a> Deserialize<'a> + Send + Sync + Clone + 'stat
                                             );
                                         }
 
-                                        world.trigger(HttpObserved::new(entity,
+                                        world.trigger(HttpObserved::new(
+                                            entity,
                                             TypedResponseError::<T>::new(e.to_string())
-                                                .response(response)
+                                                .response(response),
                                         ));
                                     }
                                 }

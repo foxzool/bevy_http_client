@@ -737,7 +737,9 @@ impl HttpClient {
         since = "0.8.3",
         note = "Use `try_with_type()` instead for better error handling"
     )]
-    pub fn with_type<T: Send + Sync + 'static + for<'a> serde::Deserialize<'a>>(self) -> TypedRequest<T> {
+    pub fn with_type<T: Send + Sync + 'static + for<'a> serde::Deserialize<'a>>(
+        self,
+    ) -> TypedRequest<T> {
         TypedRequest::new(
             Request {
                 method: self.method.expect("method is required"),
@@ -872,8 +874,7 @@ fn handle_request(
                                 } else {
                                     bevy_log::error!("HttpResponseError events resource not found");
                                 }
-                                world
-                                    .trigger(HttpResponseError::new(e.to_string()));
+                                world.trigger(HttpResponseError::new(e.to_string()));
                             }
                         }
 
