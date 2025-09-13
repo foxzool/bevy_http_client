@@ -7,7 +7,7 @@ use bevy_tasks::IoTaskPool;
 use crossbeam_channel::{Receiver, Sender};
 use ehttp::{Headers, Request, Response};
 
-use crate::prelude::TypedRequest;
+use crate::{prelude::TypedRequest, typed::HttpObserved};
 
 pub mod prelude;
 mod typed;
@@ -864,7 +864,7 @@ fn handle_request(
                                 } else {
                                     bevy_log::error!("HttpResponse events resource not found");
                                 }
-                                world.trigger(HttpResponse(res));
+                                world.trigger(HttpObserved::new(entity, HttpResponse(res)));
                             }
                             Err(e) => {
                                 if let Some(mut events) =
@@ -874,7 +874,7 @@ fn handle_request(
                                 } else {
                                     bevy_log::error!("HttpResponseError events resource not found");
                                 }
-                                world.trigger(HttpResponseError::new(e.to_string()));
+                                world.trigger(HttpObserved::new(entity, HttpResponseError::new(e.to_string())));
                             }
                         }
 
