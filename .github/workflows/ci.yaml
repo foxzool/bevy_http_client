@@ -103,7 +103,7 @@ jobs:
       - name: Test examples compilation for WASM
         run: |
           rustup target add wasm32-unknown-unknown
-          cargo build --example window --target wasm32-unknown-unknown
+          RUSTFLAGS='--cfg getrandom_backend="wasm_js" cargo build --example window --target wasm32-unknown-unknown
 
   # Build docs
   docs:
