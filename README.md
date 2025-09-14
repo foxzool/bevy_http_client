@@ -61,6 +61,7 @@ fn handle_error(mut ev_error: MessageReader<TypedResponseError<IpInfo>>) {
 
 | bevy | bevy_http_client |
 |------|------------------|
+| 0.17 | 0.9.0            |
 | 0.16 | 0.8.3            |
 | 0.15 | 0.7              |
 | 0.14 | 0.6              |
