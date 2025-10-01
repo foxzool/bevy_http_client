@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2025-10-01
+
+### Changed
+- Bump Bevy version to 0.17.0
+- Updated all dependencies to Bevy 0.17.0 compatible versions
+
+### Fixed
+- Fixed untyped observers not firing properly
+- Updated HttpClientPlugin doctest to use MinimalPlugins
+- Resolved GitHub CI/CD workflow issues
+
+### Added
+- Added RUSTFLAGS for WASM example builds to improve compilation
+- Added flag for WASM example execution
+
+### Development
+- Fixed import ordering to pass cargo fmt checks
+- Improved overall code formatting and consistency
+
 ## [0.8.3] - 2025-06-25
 
 ### Added
