@@ -18,7 +18,7 @@ pub enum JsonFallback {
     /// Use empty object {} as fallback
     #[default]
     EmptyObject,
-    /// Use empty array [] as fallback  
+    /// Use empty array [] as fallback
     EmptyArray,
     /// Use null as fallback
     Null,
@@ -530,6 +530,62 @@ impl HttpClient {
     pub fn json(self, body: &impl serde::Serialize) -> Self {
         // Use default fallback strategy (empty object)
         self.json_with_fallback(body, JsonFallback::default())
+    }
+
+    /// Sets the request body as URL-encoded form data
+    ///
+    /// Used to send data in `application/x-www-form-urlencoded` format,
+    /// which is the standard format for HTML form submissions. The data should be
+    /// pre-encoded in key=value pairs separated by & characters.
+    ///
+    /// Automatically sets:
+    /// - Content-Type: application/x-www-form-urlencoded
+    /// - Accept: application/json
+    ///
+    /// # Arguments
+    ///
+    /// * `body` - A string slice containing URL-encoded form data (e.g., "key1=value1&key2=value2")
+    ///
+    /// # Returns
+    ///
+    /// * `Self` - Returns the instance of the `HttpClient` struct, allowing for method chaining
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use bevy_http_client::HttpClient;
+    ///
+    /// // Simple form submission
+    /// let client = HttpClient::new()
+    ///     .post("https://api.example.com/login")
+    ///     .form_encoded("username=john&password=secret");
+    ///
+    /// // With URL-encoded special characters
+    /// let client = HttpClient::new()
+    ///     .post("https://api.example.com/submit")
+    ///     .form_encoded("email=user%40example.com&message=Hello%20World");
+    /// ```
+    ///
+    /// # Note
+    ///
+    /// The caller is responsible for properly URL-encoding the data. Special characters
+    /// should be percent-encoded according to RFC 3986.
+    pub fn form_encoded(mut self, body: &str) -> Self {
+        if let Some(headers) = self.headers.as_mut() {
+            headers.insert(
+                "Content-Type".to_string(),
+                "application/x-www-form-urlencoded".to_string(),
+            );
+            headers.insert("Accept".to_string(), "application/json".to_string());
+        } else {
+            self.headers = Some(ehttp::Headers::new(&[
+                ("Content-Type", "application/x-www-form-urlencoded"),
+                ("Accept", "application/json"),
+            ]));
+        }
+
+        self.body = body.as_bytes().to_vec();
+        self
     }
 
     /// This method is used to set the properties of the `HttpClient` instance using an `Request`
