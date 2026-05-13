@@ -53,7 +53,7 @@ fn setup(mut commands: Commands) {
         ))
         .with_children(|parent| {
             let text_font = TextFont {
-                font_size: 40.,
+                font_size: FontSize::Px(40.),
                 ..default()
             };
             parent.spawn(Node::default()).with_children(|parent| {
