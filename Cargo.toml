@@ -41,6 +41,7 @@ bevy = { version = "0.19.0-rc.1", default-features = false, features = [
     "bevy_sprite_render",
     "bevy_text",
     "bevy_ui",
+    "bevy_ui_render",
     "bevy_window",
     "bevy_log",
     "multi_threaded",
