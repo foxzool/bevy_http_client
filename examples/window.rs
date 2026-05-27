@@ -39,45 +39,46 @@ struct ResponseIP;
 
 fn setup(mut commands: Commands) {
     // Camera
-    commands.spawn((Camera2d, IsDefaultUiCamera));
+    commands.spawn(Camera2d);
+
+    // Container for HTTP status
     commands
         .spawn((
             Node {
                 position_type: PositionType::Absolute,
-                padding: UiRect::all(Val::Px(5.0)),
-                display: Display::Grid,
+                top: Val::Px(10.0),
+                left: Val::Px(10.0),
+                width: Val::Px(400.0),
+                height: Val::Px(120.0),
+                padding: UiRect::all(Val::Px(10.0)),
+                display: Display::Flex,
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(8.0),
                 ..default()
             },
             ZIndex(i32::MAX),
             BackgroundColor(Color::BLACK.with_alpha(0.75)),
         ))
         .with_children(|parent| {
-            let text_font = TextFont {
-                font_size: 40.,
-                ..default()
-            };
-            parent.spawn(Node::default()).with_children(|parent| {
-                parent.spawn((
-                    Text::new("Status: "),
-                    TextColor(LIME.into()),
-                    text_font.clone(),
-                ));
-                parent.spawn((
-                    Text::new(""),
-                    TextColor(AQUA.into()),
-                    text_font.clone(),
-                    ResponseText,
-                ));
-            });
-            parent.spawn(Node::default()).with_children(|parent| {
-                parent.spawn((Text::new("Ip: "), TextColor(LIME.into()), text_font.clone()));
-                parent.spawn((
-                    Text::new(""),
-                    TextColor(AQUA.into()),
-                    text_font.clone(),
-                    ResponseIP,
-                ));
-            });
+            let text_font = TextFont::from_font_size(40.);
+            parent.spawn((
+                Text::new("Status: "),
+                TextColor(LIME.into()),
+                text_font.clone(),
+            ));
+            parent.spawn((
+                Text::new(""),
+                TextColor(AQUA.into()),
+                text_font.clone(),
+                ResponseText,
+            ));
+            parent.spawn((Text::new("Ip: "), TextColor(LIME.into()), text_font.clone()));
+            parent.spawn((
+                Text::new(""),
+                TextColor(AQUA.into()),
+                text_font.clone(),
+                ResponseIP,
+            ));
         });
 }
 

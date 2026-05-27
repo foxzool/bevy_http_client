@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.0] - 2026-05-27
+
+### Changed
+- Upgrade to Bevy 0.19.0-rc.2
+- Updated all Bevy dependencies to 0.19.0-rc.2 compatible versions
+  - bevy_app: 0.19.0-rc.2
+  - bevy_derive: 0.19.0-rc.2
+  - bevy_ecs: 0.19.0-rc.2
+  - bevy_tasks: 0.19.0-rc.2
+  - bevy_log: 0.19.0-rc.2
+
+### Fixed
+- Fixed `window` example for Bevy 0.19 UI rendering changes
+  - Added `bevy_ui_render` feature to dev-dependencies (required for UI node extraction to render world)
+  - Removed `IsDefaultUiCamera` (no longer needed in 0.19)
+  - Replaced `Display::Grid` with `Display::Flex` + fixed dimensions
+  - Removed `Node::default()` nesting (text entities are now direct children)
+  - Updated font setup to use `TextFont::from_font_size()` for built-in default font
+
+## [0.10.0] - 2025-01-15
+
+### Changed
+- Bump Bevy version to 0.18.0
+- Updated all Bevy dependencies to 0.18.0 compatible versions
+  - bevy_app: 0.18.0
+  - bevy_derive: 0.18
+  - bevy_ecs: 0.18.0
+  - bevy_tasks: 0.18.0
+  - bevy_log: 0.18.0
+
+### Removed
+- Removed `animation` feature from dev-dependencies (no longer available in Bevy 0.18)
+
 ## [0.9.0] - 2025-10-01
 
 ### Changed
