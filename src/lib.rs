@@ -540,7 +540,6 @@ impl HttpClient {
     ///
     /// Automatically sets:
     /// - Content-Type: application/x-www-form-urlencoded
-    /// - Accept: application/json
     ///
     /// # Arguments
     ///
@@ -558,12 +557,14 @@ impl HttpClient {
     /// // Simple form submission
     /// let client = HttpClient::new()
     ///     .post("https://api.example.com/login")
-    ///     .form_encoded("username=john&password=secret");
+    ///     .form_encoded("username=john&password=secret")
+    ///     .headers(&[("Accept", "application/json")]);
     ///
     /// // With URL-encoded special characters
     /// let client = HttpClient::new()
     ///     .post("https://api.example.com/submit")
-    ///     .form_encoded("email=user%40example.com&message=Hello%20World");
+    ///     .form_encoded("email=user%40example.com&message=Hello%20World")
+    ///     .headers(&[("Accept", "application/json")]);
     /// ```
     ///
     /// # Note
@@ -576,12 +577,11 @@ impl HttpClient {
                 "Content-Type".to_string(),
                 "application/x-www-form-urlencoded".to_string(),
             );
-            headers.insert("Accept".to_string(), "application/json".to_string());
         } else {
-            self.headers = Some(ehttp::Headers::new(&[
-                ("Content-Type", "application/x-www-form-urlencoded"),
-                ("Accept", "application/json"),
-            ]));
+            self.headers = Some(ehttp::Headers::new(&[(
+                "Content-Type",
+                "application/x-www-form-urlencoded",
+            )]));
         }
 
         self.body = body.as_bytes().to_vec();
