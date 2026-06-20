@@ -5,16 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.11.0] - 2026-05-27
+## [0.11.0] - 2026-06-20
 
 ### Changed
-- Upgrade to Bevy 0.19.0-rc.2
-- Updated all Bevy dependencies to 0.19.0-rc.2 compatible versions
-  - bevy_app: 0.19.0-rc.2
-  - bevy_derive: 0.19.0-rc.2
-  - bevy_ecs: 0.19.0-rc.2
-  - bevy_tasks: 0.19.0-rc.2
-  - bevy_log: 0.19.0-rc.2
+- Upgrade to Bevy 0.19.0
+- Updated all Bevy dependencies to 0.19.0 compatible versions
+  - bevy_app: 0.19.0
+  - bevy_derive: 0.19.0
+  - bevy_ecs: 0.19.0
+  - bevy_tasks: 0.19.0
+  - bevy_log: 0.19.0
 
 ### Fixed
 - Fixed `window` example for Bevy 0.19 UI rendering changes
