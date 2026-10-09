@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-10-09
+
+### Changed
+- Upgrade to Bevy 0.20.0
+- Updated all Bevy dependencies to 0.20.0 compatible versions
+  - bevy_app: 0.20.0
+  - bevy_derive: 0.20.0
+  - bevy_ecs: 0.20.0
+  - bevy_tasks: 0.20.0
+  - bevy_log: 0.20.0
+
 ## [0.11.0] - 2026-06-20
 
 ### Changed
